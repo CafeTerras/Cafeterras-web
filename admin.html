@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cafe Admin</title>
+  <style>
+    body { font-family: sans-serif; background: #f8f8f8; padding: 16px; }
+    h2 { text-align: center; margin-bottom: 20px; }
+    .section { margin-bottom: 40px; }
+    .item-card, .order-card {
+      background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input, button, select {
+      padding: 6px; margin: 4px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    .inline { display: inline-block; vertical-align: middle; }
+    .item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+    .item-actions button { margin-right: 6px; }
+    .modal, .modal-report {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: white; padding: 20px; border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;
+      width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;
+    }
+    .overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.3); z-index: 999;
+    }
+    #menuItems { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .item-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Cafe Menu Admin</h2>
+
+  <div class="section">
+    <h3>Add/Edit Item</h3>
+    <input id="itemKey" type="hidden">
+    <input id="name" placeholder="Name" />
+    <input id="desc" placeholder="Description" />
+    <input id="price" placeholder="Price" type="number" />
+    <input id="img" placeholder="Image URL" />
+    <input id="position" placeholder="Order" type="number" />
+    <button onclick="saveItem()">Save</button>
+    <button onclick="resetForm()">New</button>
+    <div id="menuItems"></div>
+  </div>
+
+  <div class="section">
+    <h3>Order History</h3>
+    <button onclick="loadReportModal('today')">Today</button>
+    <button onclick="loadReportModal('yesterday')">Yesterday</button>
+    <button onclick="loadReportModal('month')">Monthly</button>
+    <button onclick="loadReportModal('all')">All</button>
+  </div>
+
+  <div class="section">
+    <h3>Sales Stats</h3>
+    <button onclick="loadStatsModal('today')">Today</button>
+    <button onclick="loadStatsModal('yesterday')">Yesterday</button>
+    <button onclick="loadStatsModal('month')">Monthly</button>
+    <button onclick="loadStatsModal('all')">All</button>
+  </div>
+
+  <div id="modal" class="modal" style="display:none;"></div>
+  <div id="reportModal" class="modal-report" style="display:none;"></div>
+  <div id="overlay" class="overlay" style="display:none;" onclick="closeModal()"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
+      authDomain: "cafeterrasapp.firebaseapp.com",
+      databaseURL: "https://cafeterrasapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cafeterrasapp",
+      storageBucket: "cafeterrasapp.appspot.com",
+      messagingSenderId: "574400800164",
+      appId: "1:574400800164:web:fc4bd509e158a6fbeecd31"
+    });
+
+    const db = getDatabase(app);
+    const menuRef = ref(db, 'menuItems');
+    const ordersRef = ref(db, 'orders');
+
+    function getDateFilter(type) {
+      const now = new Date();
+      const start = new Date();
+      if (type === 'yesterday') start.setDate(start.getDate() - 1);
+      else if (type === 'month') start.setDate(1);
+      else if (type !== 'today') return null;
+      return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
+    }
+
+    window.loadReportModal = (type) => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('reportModal');
+      modal.style.display = 'block';
+      modal.innerHTML = `<h3>Orders</h3>`;
+      const range = getDateFilter(type);
+      onValue(ordersRef, snap => {
+        const data = snap.val() || {};
+        let total = 0;
+        Object.entries(data).forEach(([key, order]) => {
+          if (!range || (order.date >= range.start && order.date <= range.end)) {
+            total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
+            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><button onclick="deleteOrder('${key}')">Delete</button></div>`;
+          }
+        });
+        modal.innerHTML += `<hr><strong>Total: ${total.toLocaleString()} Toman</strong>`;
+      }, { onlyOnce: true });
+    };
+
+    window.deleteOrder = (key) => {
+      if (confirm("Delete this order?")) remove(ref(db, `orders/${key}`));
+    };
+
+    window.loadStatsModal = (type) => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('reportModal');
+      modal.style.display = 'block';
+      modal.innerHTML = `<h3>Sales Stats</h3>`;
+      const range = getDateFilter(type);
+      onValue(ordersRef, snap => {
+        const data = snap.val() || {};
+        const stats = {};
+        let total = 0;
+        Object.values(data).forEach(order => {
+          if (!range || (order.date >= range.start && order.date <= range.end)) {
+            Object.values(order.items).forEach(i => {
+              if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
+              stats[i.name].qty += i.qty;
+              stats[i.name].revenue += i.qty * i.price;
+              total += i.qty * i.price;
+            });
+          }
+        });
+        Object.entries(stats).forEach(([name, stat]) => {
+          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty}x - ${stat.revenue.toLocaleString()} Toman</div>`;
+        });
+        modal.innerHTML += `<hr><strong>Total Revenue: ${total.toLocaleString()} Toman</strong>`;
+      }, { onlyOnce: true });
+    };
+
+    window.saveItem = () => {
+      const key = document.getElementById('itemKey').value;
+      const name = document.getElementById('name').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+      const price = parseInt(document.getElementById('price').value);
+      const img = document.getElementById('img').value.trim();
+      const position = parseInt(document.getElementById('position').value);
+      if (!name || !price || !img) return alert("Name, Price, and Image are required.");
+      const data = { name, desc, price, img, position };
+      if (key) update(ref(db, `menuItems/${key}`), data);
+      else push(menuRef, data);
+      resetForm();
+      closeModal();
+    };
+
+    window.resetForm = () => {
+      document.getElementById('itemKey').value = '';
+      document.getElementById('name').value = '';
+      document.getElementById('desc').value = '';
+      document.getElementById('price').value = '';
+      document.getElementById('img').value = '';
+      document.getElementById('position').value = '';
+    };
+
+    window.editItem = (key) => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('modal');
+      modal.style.display = 'block';
+      onValue(ref(db, `menuItems/${key}`), snap => {
+        const item = snap.val();
+        modal.innerHTML = `
+          <h3>Edit Item</h3>
+          <input id="itemKey" value="${key}" type="hidden">
+          <input id="name" value="${item.name}" placeholder="Name" />
+          <input id="desc" value="${item.desc}" placeholder="Description" />
+          <input id="price" value="${item.price}" placeholder="Price" type="number" />
+          <input id="img" value="${item.img}" placeholder="Image URL" />
+          <input id="position" value="${item.position || 0}" placeholder="Order" type="number" />
+          <button onclick="saveItem()">Save</button>
+          <button onclick="closeModal()">Cancel</button>
+        `;
+      }, { onlyOnce: true });
+    };
+
+    window.closeModal = () => {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('reportModal').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    };
+
+    window.deleteItem = (key) => {
+      if (confirm('Are you sure to delete this item?')) remove(ref(db, `menuItems/${key}`));
+    };
+
+    window.moveItem = (key, direction) => {
+      onValue(menuRef, snap => {
+        const data = snap.val() || {};
+        const entries = Object.entries(data).sort((a,b)=>(a[1].position||0)-(b[1].position||0));
+        const index = entries.findIndex(([k]) => k === key);
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= entries.length) return;
+        const temp = entries[index][1].position;
+        entries[index][1].position = entries[newIndex][1].position;
+        entries[newIndex][1].position = temp;
+        const updates = {};
+        updates[`menuItems/${entries[index][0]}/position`] = entries[index][1].position;
+        updates[`menuItems/${entries[newIndex][0]}/position`] = entries[newIndex][1].position;
+        update(ref(db), updates);
+      }, { onlyOnce: true });
+    };
+
+    function loadMenu() {
+      onValue(menuRef, snap => {
+        const data = snap.val() || {};
+        const container = document.getElementById('menuItems');
+        container.innerHTML = '';
+        Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
+          const div = document.createElement('div');
+          div.className = 'item-card';
+          div.innerHTML = `
+            <img src="${item.img}" class="item-img" />
+            <strong>${item.name}</strong>
+            <div>${item.desc}</div>
+            <div>${item.price.toLocaleString()} Toman</div>
+            <div class="item-actions">
+              <button onclick="editItem('${key}')">Edit</button>
+              <button onclick="deleteItem('${key}')">Delete</button>
+              <button onclick="moveItem('${key}', -1)">⬆️</button>
+              <button onclick="moveItem('${key}', 1)">⬇️</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    loadMenu();
+  </script>
+</body>
+</html>
