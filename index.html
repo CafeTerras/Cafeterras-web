@@ -20,11 +20,22 @@
       background: #1976d2; color: white; border: none; border-radius: 8px;
       padding: 8px 12px; margin-top: 6px; cursor: pointer; font-size: 14px;
     }
-    #cart {
-      position: fixed; bottom: 16px; left: 16px; width: 280px; background: white;
-      border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      padding: 16px; max-height: 80vh; overflow-y: auto; display: none; z-index: 100;
-    }
+   #cart {
+  position: fixed;
+  top: 16px;
+  align-self: flex-start;
+  width: 280px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  padding: 16px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 10;
+<div id="cartHeader" style="cursor: move; font-weight: bold; margin-bottom: 8px;">🛒 سبد خرید</div>
+
+}
+
     .cart-item { margin: 4px 0; font-size: 14px; display: flex; justify-content: space-between; }
     .remove-btn { color: red; margin-right: 8px; cursor: pointer; }
     input.customer { width: 100%; margin-top: 8px; padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; }
@@ -192,6 +203,44 @@
         document.getElementById(id).value = "";
       });
     });
+// سبد خرید قابل جابجایی
+function makeDraggable(elmnt, handle) {
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  const dragMouseDown = (e) => {
+    e = e || window.event;
+    e.preventDefault();
+    // موقعیت فعلی موس
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDragElement;
+    document.onmousemove = elementDrag;
+  };
+
+  const elementDrag = (e) => {
+    e = e || window.event;
+    e.preventDefault();
+    // محاسبه فاصله حرکت
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    // تغییر مکان عنصر
+    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+  };
+
+  const closeDragElement = () => {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  };
+
+  // اگر دسته کشیدن وجود داره از اون استفاده کن
+  (handle || elmnt).onmousedown = dragMouseDown;
+}
+
+// اجرای قابلیت جابجایی روی #cart
+makeDraggable(document.getElementById("cart"), document.getElementById("cartHeader"));
+
   </script>
 </body>
 </html>
