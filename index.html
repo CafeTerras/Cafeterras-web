@@ -5,40 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>منوی کافه تراس</title>
   <style>
-    body { font-family: sans-serif; background: #f0f0f0; padding: 16px; }
-    .title { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 16px; }
-    .menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      padding: 16px;
+    }
+
+    .title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
+    .menu {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+
     .card {
-      background: white; border-radius: 12px; width: 180px; padding: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;
+      background: white;
+      border-radius: 12px;
+      width: 180px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
     }
-    .card img { width: 140px; height: 140px; border-radius: 8px; object-fit: cover; }
-    .name { font-weight: bold; margin-top: 8px; }
-    .desc { font-size: 14px; color: #555; margin: 4px 0; }
-    .price { color: green; font-weight: bold; margin: 4px 0; }
+
+    .card img {
+      width: 140px;
+      height: 140px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .name {
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .desc {
+      font-size: 14px;
+      color: #555;
+      margin: 4px 0;
+    }
+
+    .price {
+      color: green;
+      font-weight: bold;
+      margin: 4px 0;
+    }
+
     button {
-      background: #1976d2; color: white; border: none; border-radius: 8px;
-      padding: 8px 12px; margin-top: 6px; cursor: pointer; font-size: 14px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 6px;
+      cursor: pointer;
+      font-size: 14px;
     }
-   #cart {
-  position: fixed;
-  top: 16px;
-  align-self: flex-start;
-  width: 280px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  padding: 16px;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 10;
-<div id="cartHeader" style="cursor: move; font-weight: bold; margin-bottom: 8px;">🛒 سبد خرید</div>
 
-}
+    #cart {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      width: 280px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      padding: 16px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 10;
+    }
 
-    .cart-item { margin: 4px 0; font-size: 14px; display: flex; justify-content: space-between; }
-    .remove-btn { color: red; margin-right: 8px; cursor: pointer; }
-    input.customer { width: 100%; margin-top: 8px; padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; }
+    #cartHeader {
+      cursor: grab;
+      font-weight: bold;
+      margin-bottom: 8px;
+      background-color: #eee;
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .cart-item {
+      margin: 4px 0;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .remove-btn {
+      color: red;
+      margin-right: 8px;
+      cursor: pointer;
+    }
+
+    input.customer {
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -46,6 +120,7 @@
   <div class="menu" id="menu"></div>
 
   <div id="cart">
+    <div id="cartHeader">🛒 سبد خرید</div>
     <h4>🧺 سبد خرید</h4>
     <div id="cartItems"></div>
     <div style="margin-top:8px;font-weight:bold">جمع کل: <span id="totalPrice">0</span> تومان</div>
@@ -148,15 +223,8 @@
         total += i.qty * i.price;
       });
 
-      // افزودن مبلغ سرویس اضافه
-      if (extraTitle && extraAmount > 0) {
-        total += extraAmount;
-      }
-
-      // کسر تخفیف
-      if (discountAmount > 0) {
-        total -= discountAmount;
-      }
+      if (extraTitle && extraAmount > 0) total += extraAmount;
+      if (discountAmount > 0) total -= discountAmount;
 
       let receipt = `🧾 فاکتور رستورانی\n----------------------\nتاریخ: ${date}    ساعت: ${time}\n`;
       if (name || mobile || table) {
@@ -179,7 +247,6 @@
 
       alert(receipt);
 
-      // ذخیره در دیتابیس
       push(ordersRef, {
         date, time, name, mobile, table, receipt, items: cart,
         extra: extraTitle && extraAmount > 0 ? { title: extraTitle, amount: extraAmount } : null,
@@ -203,44 +270,62 @@
         document.getElementById(id).value = "";
       });
     });
-// سبد خرید قابل جابجایی
-function makeDraggable(elmnt, handle) {
-  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-  const dragMouseDown = (e) => {
-    e = e || window.event;
-    e.preventDefault();
-    // موقعیت فعلی موس
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    document.onmouseup = closeDragElement;
-    document.onmousemove = elementDrag;
-  };
 
-  const elementDrag = (e) => {
-    e = e || window.event;
-    e.preventDefault();
-    // محاسبه فاصله حرکت
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    // تغییر مکان عنصر
-    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
-  };
+    // سبد خرید قابل جابجایی (دسکتاپ و موبایل)
+    function makeDraggable(elmnt, handle) {
+      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
 
-  const closeDragElement = () => {
-    document.onmouseup = null;
-    document.onmousemove = null;
-  };
+      const dragMouseDown = (e) => {
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+      };
 
-  // اگر دسته کشیدن وجود داره از اون استفاده کن
-  (handle || elmnt).onmousedown = dragMouseDown;
-}
+      const elementDrag = (e) => {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+        elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+      };
 
-// اجرای قابلیت جابجایی روی #cart
-makeDraggable(document.getElementById("cart"), document.getElementById("cartHeader"));
+      const closeDragElement = () => {
+        document.onmouseup = null;
+        document.onmousemove = null;
+      };
 
+      const dragTouchStart = (e) => {
+        const touch = e.touches[0];
+        pos3 = touch.clientX;
+        pos4 = touch.clientY;
+        document.ontouchend = closeTouchDrag;
+        document.ontouchmove = touchDrag;
+      };
+
+      const touchDrag = (e) => {
+        const touch = e.touches[0];
+        pos1 = pos3 - touch.clientX;
+        pos2 = pos4 - touch.clientY;
+        pos3 = touch.clientX;
+        pos4 = touch.clientY;
+        elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+        elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+      };
+
+      const closeTouchDrag = () => {
+        document.ontouchend = null;
+        document.ontouchmove = null;
+      };
+
+      (handle || elmnt).onmousedown = dragMouseDown;
+      (handle || elmnt).ontouchstart = dragTouchStart;
+    }
+
+    makeDraggable(document.getElementById("cart"), document.getElementById("cartHeader"));
   </script>
 </body>
 </html>
