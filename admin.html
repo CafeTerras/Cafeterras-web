@@ -127,12 +127,7 @@
     const menuRef = ref(db, 'menuItems');
     const ordersRef = ref(db, 'orders');
 
-    window.changeBg = () => {
-      const url = document.getElementById('bgInput').value.trim();
-      if (url) document.body.style.setProperty('--bg-img', `url(${url})`);
-    };
-
-    window.saveItem = () => {
+     window.saveItem = () => {
       const key = document.getElementById('itemKey').value;
       const name = document.getElementById('name').value.trim();
       const desc = document.getElementById('desc').value.trim();
@@ -287,6 +282,23 @@
     document.body.style.setProperty('--bg-img', `url(${savedBg})`);
     document.getElementById('bgInput').value = savedBg; // مقدار قبلی رو هم تو فیلد نشون بده
   }
+</script>
+<script>
+  // بارگذاری بک‌گراند ذخیره‌شده (در تمام دستگاه‌ها)
+  const savedBg = localStorage.getItem('custom-bg');
+  if (savedBg) {
+    document.body.style.setProperty('--bg-img', `url(${savedBg})`);
+    const bgInput = document.getElementById('bgInput');
+    if (bgInput) bgInput.value = savedBg;
+  }
+</script>
+  <script>
+  window.changeBg = () => {
+    const url = document.getElementById('bgInput').value.trim();
+    if (!url.startsWith('http')) return alert('لطفاً یک URL معتبر وارد کنید');
+    localStorage.setItem('custom-bg', url);
+    document.body.style.setProperty('--bg-img', `url(${url})`);
+  };
 </script>
 </body>
 </html>
