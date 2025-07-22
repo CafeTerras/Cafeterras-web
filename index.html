@@ -81,6 +81,7 @@
       max-height: 80vh;
       overflow-y: auto;
       z-index: 10;
+      display: none; /* به‌صورت پیش‌فرض مخفی */
     }
 
     #cartHeader {
@@ -90,6 +91,18 @@
       background-color: #eee;
       padding: 6px;
       border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-cart {
+      background: none;
+      color: red;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      padding: 0;
     }
 
     .cart-item {
@@ -113,6 +126,31 @@
       border: 1px solid #ccc;
       font-size: 14px;
     }
+
+    .collapsible {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 8px 0;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .collapsible-content {
+      display: none;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .collapsible-content.active {
+      display: block;
+      max-height: 400px;
+    }
   </style>
 </head>
 <body>
@@ -120,17 +158,25 @@
   <div class="menu" id="menu"></div>
 
   <div id="cart">
-    <div id="cartHeader">🛒 سبد خرید</div>
+    <div id="cartHeader">
+      <span>🛒 سبد خرید</span>
+      <button class="close-cart" onclick="closeCart()">✕</button>
+    </div>
     <h4>🧺 سبد خرید</h4>
     <div id="cartItems"></div>
     <div style="margin-top:8px;font-weight:bold">جمع کل: <span id="totalPrice">0</span> تومان</div>
-    <input type="text" class="customer" id="custName" placeholder="نام مشتری (اختیاری)" />
-    <input type="text" class="customer" id="custMobile" placeholder="شماره موبایل (اختیاری)" />
-    <input type="text" class="customer" id="tableNum" placeholder="شماره میز (اختیاری)" />
-    <hr>
-    <input type="text" class="customer" id="extraTitle" placeholder="عنوان سرویس اضافه (اختیاری)" />
-    <input type="number" class="customer" id="extraAmount" placeholder="مبلغ سرویس (تومان)" />
-    <input type="number" class="customer" id="discountAmount" placeholder="تخفیف (تومان)" />
+    <button class="collapsible" onclick="toggleCollapsible()">نمایش جزئیات</button>
+    <div class="collapsible-content" id="customerDetails">
+      <input type="text" class="customer" id="custName" placeholder="نام مشتری (اختیاری)" />
+      <input type="text" class="customer" id="custMobile" placeholder="شماره موبایل (اختیاری)" />
+      <input type="text" class="customer" id="tableNum" placeholder="شماره میز (اختیاری)" />
+      <hr>
+      <input type="text" class="customer" id="extraTitle" placeholder="عنوان سرویس اضافه (اختیاری)" />
+      <input type="number" class="customer" id="extraAmount" placeholder="مبلغ سرویس (تومان)" />
+      <input type="number" class="customer" id="discountAmount" placeholder="تخفیف (تومان)" />
+      <input type="number" class="customer" id="cashAmount" placeholder="دریافت نقدی (تومان)" />
+      <input type="number" class="customer" id="cardAmount" placeholder="دریافت با کارت بانکی (تومان)" />
+    </div>
     <button id="checkout">صدور فاکتور</button>
   </div>
 
@@ -161,8 +207,12 @@
     let items = {}, cart = {};
 
     function renderMenu(data) {
-      items = data;
+      items = data || {};
       menuDiv.innerHTML = "";
+      if (!Object.keys(items).length) {
+        menuDiv.innerHTML = "<p>منویی یافت نشد!</p>";
+        return;
+      }
       Object.entries(data).sort((a, b) => (a[1].position || 0) - (b[1].position || 0)).forEach(([key, item]) => {
         const card = document.createElement("div");
         card.className = "card";
@@ -179,14 +229,19 @@
 
     window.addToCart = (key) => {
       const item = items[key];
+      if (!item) return; // جلوگیری از خطا
       cart[key] ? cart[key].qty++ : cart[key] = { ...item, qty: 1 };
+      cartDiv.style.display = "block";
       renderCart();
     };
 
     function renderCart() {
-      cartDiv.style.display = Object.keys(cart).length ? "block" : "none";
       cartItemsDiv.innerHTML = "";
       let total = 0;
+      if (Object.keys(cart).length === 0) {
+        cartDiv.style.display = "none";
+        return;
+      }
       Object.entries(cart).forEach(([key, i]) => {
         const row = document.createElement("div");
         row.className = "cart-item";
@@ -198,6 +253,7 @@
         total += i.qty * i.price;
       });
       totalPriceSpan.textContent = total.toLocaleString();
+      cartDiv.style.display = "block";
     }
 
     window.removeFromCart = (key) => {
@@ -205,12 +261,28 @@
       renderCart();
     };
 
+    window.closeCart = () => {
+      cartDiv.style.display = "none";
+    };
+
+    window.toggleCollapsible = () => {
+      const content = document.getElementById("customerDetails");
+      content.classList.toggle("active");
+      const button = document.querySelector(".collapsible");
+      button.textContent = content.classList.contains("active") ? "مخفی کردن جزئیات" : "نمایش جزئیات";
+    };
+
     document.getElementById("checkout").onclick = () => {
-      if (!Object.keys(cart).length) return;
+      if (!Object.keys(cart).length) {
+        alert("سبد خرید خالی است!");
+        return;
+      }
 
       const extraTitle = document.getElementById("extraTitle").value.trim();
       const extraAmount = parseInt(document.getElementById("extraAmount").value) || 0;
       const discountAmount = parseInt(document.getElementById("discountAmount").value) || 0;
+      const cashAmount = parseInt(document.getElementById("cashAmount").value) || 0;
+      const cardAmount = parseInt(document.getElementById("cardAmount").value) || 0;
       const now = new Date();
       const time = now.toLocaleTimeString("fa-IR");
       const date = now.toLocaleDateString("fa-IR");
@@ -242,6 +314,12 @@
       if (discountAmount > 0) {
         receipt += `تخفیف -${discountAmount.toLocaleString()} تومان\n`;
       }
+      if (cashAmount > 0) {
+        receipt += `دریافت نقدی - ${cashAmount.toLocaleString()} تومان\n`;
+      }
+      if (cardAmount > 0) {
+        receipt += `دریافت با کارت بانکی - ${cardAmount.toLocaleString()} تومان\n`;
+      }
 
       receipt += `----------------------\nجمع کل: ${total.toLocaleString()} تومان`;
 
@@ -250,7 +328,9 @@
       push(ordersRef, {
         date, time, name, mobile, table, receipt, items: cart,
         extra: extraTitle && extraAmount > 0 ? { title: extraTitle, amount: extraAmount } : null,
-        discount: discountAmount
+        discount: discountAmount,
+        cashAmount,
+        cardAmount
       });
 
       cart = {};
@@ -261,17 +341,15 @@
       document.getElementById("extraTitle").value = "";
       document.getElementById("extraAmount").value = "";
       document.getElementById("discountAmount").value = "";
+      document.getElementById("cashAmount").value = "";
+      document.getElementById("cardAmount").value = "";
     };
 
     onValue(itemsRef, snapshot => {
       const data = snapshot.val();
-      if (data) renderMenu(data);
-      ["extraTitle", "extraAmount", "discountAmount"].forEach(id => {
-        document.getElementById(id).value = "";
-      });
+      renderMenu(data);
     });
 
-    // سبد خرید قابل جابجایی (دسکتاپ و موبایل)
     function makeDraggable(elmnt, handle) {
       let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
 
