@@ -1,22 +1,24 @@
-
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cafe Admin</title>
+  <title>مدیریت Café Terras</title>
   <style>
-.header-box {
-  background: white;
-  color: black;
-  display: inline-block;
-  padding: 8px 16px;
-  margin: 12px auto;
-  border-radius: 12px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.3);
-  font-weight: bold;
-}
+    :root {
+      --primary-bg: #FFC107; /* زرد ون‌گوگ */
+      --primary-color: #1A237E; /* آبی تیره ون‌گوگ */
+    }
+    .header-box {
+      background: white;
+      color: var(--primary-color);
+      display: inline-block;
+      padding: 8px 16px;
+      margin: 12px auto;
+      border-radius: 12px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      font-weight: bold;
+    }
     body {
       font-family: sans-serif;
       background: var(--bg-img, #f8f8f8) center/cover no-repeat fixed;
@@ -25,84 +27,133 @@
     h2 { text-align: center; margin-bottom: 20px; }
     .section { margin-bottom: 40px; }
     .item-card, .order-card {
-      background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     input, button, select {
-      padding: 6px; margin: 4px; border-radius: 6px; border: 1px solid #ccc;
+      padding: 6px;
+      margin: 4px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    select {
+      background: white;
+      color: var(--primary-color);
     }
     .inline { display: inline-block; vertical-align: middle; }
     .item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
-    .item-actions button { margin-right: 6px; }
+    .item-actions button {
+      margin-right: 6px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
     .modal, .modal-report {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: white; padding: 20px; border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;
-      width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
     }
     .overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.3); z-index: 999;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.3);
+      z-index: 999;
     }
-    #menuItems { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-    .item-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    #menuItems {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+    .item-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
   <script>
-    const password = prompt("Enter admin password:");
+    const password = prompt("رمز ادمین را وارد کنید:");
     if (password !== "1816") {
-      document.body.innerHTML = "<h2 style='text-align:center;color:red;'>Access Denied</h2>";
+      document.body.innerHTML = "<h2 style='text-align:center;color:red;'>دسترسی غیرمجاز</h2>";
       throw new Error("Unauthorized");
     }
   </script>
 
-  <h2><span class="header-box">Cafe Menu Admin</span></h2>
-<div style="text-align:center; margin-bottom: 20px;">
-  <a href="https://console.firebase.google.com/project/cafeterrasapp" target="_blank">
-    <button>Firebase Console</button>
-  </a>
-  <a href="https://github.com/cafeterras" target="_blank">
-    <button>GitHub</button>
-  </a>
-  <a href="https://arash-sepehrara.imgbb.com" target="_blank">
-    <button>imgbb</button>
-  </a>
-</div>
+  <h2><span class="header-box">مدیریت منوی Café Terras</span></h2>
+  <div style="text-align:center; margin-bottom: 20px;">
+    <a href="https://console.firebase.google.com/project/cafeterrasapp" target="_blank">
+      <button>کنسول Firebase</button>
+    </a>
+    <a href="https://github.com/cafeterras" target="_blank">
+      <button>GitHub</button>
+    </a>
+    <a href="https://arash-sepehrara.imgbb.com" target="_blank">
+      <button>imgbb</button>
+    </a>
+  </div>
 
-  <div class="section"; style="text-align:center; margin-bottom: 20px">
-    <h3><span class="header-box">Change Background</span></h3>
-    <input id="bgInput" placeholder="Image URL..." />
-    <button onclick="changeBg()">Apply</button>
+  <div class="section" style="text-align:center; margin-bottom: 20px">
+    <h3><span class="header-box">تغییر پس‌زمینه</span></h3>
+    <input id="bgInput" placeholder="آدرس تصویر..." />
+    <button onclick="changeBg()">اعمال</button>
   </div>
 
   <div class="section">
-    <h3><span class="header-box">Add/Edit Item</span></h3>
+    <h3><span class="header-box">اضافه/ویرایش آیتم</span></h3>
     <input id="itemKey" type="hidden">
-    <input id="name" placeholder="Name" />
-    <input id="desc" placeholder="Description" />
-    <input id="price" placeholder="Price" type="number" />
-    <input id="img" placeholder="Image URL" />
-    <input id="position" placeholder="Order" type="number" />
-    <button onclick="saveItem()">Save</button>
-    <button onclick="resetForm()">New</button>
+    <input id="name" placeholder="نام" />
+    <input id="desc" placeholder="توضیحات" />
+    <input id="price" placeholder="قیمت (تومان)" type="number" />
+    <input id="img" placeholder="آدرس تصویر" />
+    <input id="position" placeholder="ترتیب" type="number" />
+    <select id="category">
+      <option value="">انتخاب دسته‌بندی</option>
+      <option value="coffee">قهوه</option>
+      <option value="food">غذا</option>
+      <option value="hot_drink">نوشیدنی گرم</option>
+      <option value="cold_drink">نوشیدنی سرد</option>
+    </select>
+    <button onclick="saveItem()">ذخیره</button>
+    <button onclick="resetForm()">جدید</button>
     <div id="menuItems"></div>
   </div>
 
   <div class="section">
-    <h3><span class="header-box">Order History</span></h3>
-    <button onclick="loadReportModal('today')">Today</button>
-    <button onclick="loadReportModal('yesterday')">Yesterday</button>
-    <button onclick="loadReportModal('month')">Monthly</button>
-    <button onclick="loadReportModal('all')">All</button>
+    <h3><span class="header-box">تاریخچه سفارشات</span></h3>
+    <button onclick="loadReportModal('today')">امروز</button>
+    <button onclick="loadReportModal('yesterday')">دیروز</button>
+    <button onclick="loadReportModal('month')">ماهانه</button>
+    <button onclick="loadReportModal('all')">همه</button>
   </div>
 
   <div class="section">
-    <h3><span class="header-box">Sales Stats</span></h3>
-    <button onclick="loadStatsModal('today')">Today</button>
-    <button onclick="loadStatsModal('yesterday')">Yesterday</button>
-    <button onclick="loadStatsModal('month')">Monthly</button>
-    <button onclick="loadStatsModal('all')">All</button>
+    <h3><span class="header-box">آمار فروش</span></h3>
+    <button onclick="loadStatsModal('today')">امروز</button>
+    <button onclick="loadStatsModal('yesterday')">دیروز</button>
+    <button onclick="loadStatsModal('month')">ماهانه</button>
+    <button onclick="loadStatsModal('all')">همه</button>
   </div>
 
   <div id="modal" class="modal" style="display:none;"></div>
@@ -127,22 +178,23 @@
     const menuRef = ref(db, 'menuItems');
     const ordersRef = ref(db, 'orders');
 
-     window.saveItem = () => {
+    window.saveItem = () => {
       const key = document.getElementById('itemKey').value;
       const name = document.getElementById('name').value.trim();
       const desc = document.getElementById('desc').value.trim();
       const price = parseInt(document.getElementById('price').value);
       const img = document.getElementById('img').value.trim();
       const position = parseInt(document.getElementById('position').value);
-      if (!name || !price || !img) return alert("Name, Price, and Image are required.");
-      const data = { name, desc, price, img, position };
+      const category = document.getElementById('category').value;
+      if (!name || !price || !img || !category) return alert("نام، قیمت، تصویر و دسته‌بندی الزامی است.");
+      const data = { name, desc, price, img, position, category };
       if (key) update(ref(db, `menuItems/${key}`), data);
       else push(menuRef, data);
       resetForm();
     };
 
     window.resetForm = () => {
-      ['itemKey','name','desc','price','img','position'].forEach(id => document.getElementById(id).value = '');
+      ['itemKey','name','desc','price','img','position','category'].forEach(id => document.getElementById(id).value = '');
     };
 
     window.loadMenu = () => {
@@ -151,16 +203,23 @@
         const container = document.getElementById('menuItems');
         container.innerHTML = '';
         Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
+          const categoryLabel = {
+            'coffee': 'قهوه',
+            'food': 'غذا',
+            'hot_drink': 'نوشیدنی گرم',
+            'cold_drink': 'نوشیدنی سرد'
+          }[item.category] || 'نامشخص';
           const div = document.createElement('div');
           div.className = 'item-card';
           div.innerHTML = `
             <img src="${item.img}" class="item-img" />
             <strong>${item.name}</strong>
             <div>${item.desc}</div>
-            <div>${item.price.toLocaleString()} Toman</div>
+            <div>${item.price.toLocaleString()} تومان</div>
+            <div>دسته‌بندی: ${categoryLabel}</div>
             <div class="item-actions">
-              <button onclick="editItem('${key}')">Edit</button>
-              <button onclick="deleteItem('${key}')">Delete</button>
+              <button onclick="editItem('${key}')">ویرایش</button>
+              <button onclick="deleteItem('${key}')">حذف</button>
               <button onclick="moveItem('${key}', -1)">⬆️</button>
               <button onclick="moveItem('${key}', 1)">⬇️</button>
             </div>
@@ -173,13 +232,13 @@
     window.editItem = (key) => {
       onValue(ref(db, `menuItems/${key}`), snap => {
         const item = snap.val();
-        ['itemKey','name','desc','price','img','position'].forEach(id => document.getElementById(id).value = item[id] || '');
+        ['itemKey','name','desc','price','img','position','category'].forEach(id => document.getElementById(id).value = item[id] || '');
         document.getElementById('itemKey').value = key;
       });
     };
 
     window.deleteItem = (key) => {
-      if (confirm('Are you sure to delete this item?')) remove(ref(db, `menuItems/${key}`));
+      if (confirm('آیا مطمئن هستید که می‌خواهید این آیتم را حذف کنید؟')) remove(ref(db, `menuItems/${key}`));
     };
 
     window.moveItem = (key, direction) => {
@@ -203,7 +262,7 @@
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>Orders</h3><button onclick="closeModal()">Close</button><button onclick="loadReportModal('${type}')">Refresh</button>`;
+      modal.innerHTML = `<h3>سفارشات</h3><button onclick="closeModal()">بستن</button><button onclick="loadReportModal('${type}')">تازه‌سازی</button>`;
       const range = getDateFilter(type);
       onValue(ordersRef, snap => {
         const data = snap.val() || {};
@@ -211,10 +270,10 @@
         Object.entries(data).forEach(([key, order]) => {
           if (!range || (order.date >= range.start && order.date <= range.end)) {
             total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
-            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><button onclick="deleteOrder('${key}')">Delete</button></div>`;
+            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><button onclick="deleteOrder('${key}')">حذف</button></div>`;
           }
         });
-        modal.innerHTML += `<hr><strong>Total: ${total.toLocaleString()} Toman</strong>`;
+        modal.innerHTML += `<hr><strong>جمع کل: ${total.toLocaleString()} تومان</strong>`;
       }, { onlyOnce: true });
     };
 
@@ -222,7 +281,7 @@
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>Sales Stats</h3><button onclick="closeModal()">Close</button><button onclick="loadStatsModal('${type}')">Refresh</button>`;
+      modal.innerHTML = `<h3>آمار فروش</h3><button onclick="closeModal()">بستن</button><button onclick="loadStatsModal('${type}')">تازه‌سازی</button>`;
       const range = getDateFilter(type);
       onValue(ordersRef, snap => {
         const data = snap.val() || {};
@@ -238,14 +297,14 @@
           }
         });
         Object.entries(stats).forEach(([name, stat]) => {
-          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty}x - ${stat.revenue.toLocaleString()} Toman</div>`;
+          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} عدد - ${stat.revenue.toLocaleString()} تومان</div>`;
         });
-        modal.innerHTML += `<hr><strong>Total Revenue: ${total.toLocaleString()} Toman</strong>`;
+        modal.innerHTML += `<hr><strong>جمع درآمد: ${total.toLocaleString()} تومان</strong>`;
       }, { onlyOnce: true });
     };
 
     window.deleteOrder = (key) => {
-      if (confirm("Delete this order?")) remove(ref(db, `orders/${key}`));
+      if (confirm("آیا مطمئن هستید که می‌خواهید این سفارش را حذف کنید؟")) remove(ref(db, `orders/${key}`));
     };
 
     window.closeModal = () => {
@@ -263,42 +322,20 @@
       return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
     }
 
+    window.changeBg = () => {
+      const url = document.getElementById('bgInput').value.trim();
+      if (!url.startsWith('http')) return alert('لطفاً یک URL معتبر وارد کنید');
+      localStorage.setItem('custom-bg', url);
+      document.body.style.setProperty('--bg-img', `url(${url})`);
+    };
+
+    const savedBg = localStorage.getItem('custom-bg');
+    if (savedBg) {
+      document.body.style.setProperty('--bg-img', `url(${savedBg})`);
+      document.getElementById('bgInput').value = savedBg;
+    }
+
     loadMenu();
   </script>
-<script>
-  const bgInput = document.getElementById('bgInput');
-
-  bgInput.addEventListener('change', e => {
-    const url = e.target.value.trim();
-    if (!url.startsWith('http')) return alert('لطفاً یک URL معتبر وارد کنید');
-    
-    localStorage.setItem('custom-bg', url);
-    document.body.style.setProperty('--bg-img', `url(${url})`);
-  });
-
-  // در بارگذاری صفحه، اگر تصویر قبلاً ذخیره شده بود، اعمال شود
-  const savedBg = localStorage.getItem('custom-bg');
-  if (savedBg) {
-    document.body.style.setProperty('--bg-img', `url(${savedBg})`);
-    document.getElementById('bgInput').value = savedBg; // مقدار قبلی رو هم تو فیلد نشون بده
-  }
-</script>
-<script>
-  // بارگذاری بک‌گراند ذخیره‌شده (در تمام دستگاه‌ها)
-  const savedBg = localStorage.getItem('custom-bg');
-  if (savedBg) {
-    document.body.style.setProperty('--bg-img', `url(${savedBg})`);
-    const bgInput = document.getElementById('bgInput');
-    if (bgInput) bgInput.value = savedBg;
-  }
-</script>
-  <script>
-  window.changeBg = () => {
-    const url = document.getElementById('bgInput').value.trim();
-    if (!url.startsWith('http')) return alert('لطفاً یک URL معتبر وارد کنید');
-    localStorage.setItem('custom-bg', url);
-    document.body.style.setProperty('--bg-img', `url(${url})`);
-  };
-</script>
 </body>
 </html>
