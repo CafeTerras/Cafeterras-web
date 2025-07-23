@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>منوی کافه تراس - مشتری</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      padding: 16px;
+    }
+
+    .title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
+    .menu {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      width: 180px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .card img {
+      width: 140px;
+      height: 140px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .name {
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .desc {
+      font-size: 14px;
+      color: #555;
+      margin: 4px 0;
+    }
+
+    .price {
+      color: green;
+      font-weight: bold;
+      margin: 4px 0;
+    }
+
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #cart {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      width: 280px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      padding: 16px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+    }
+
+    #cartHeader {
+      font-weight: bold;
+      margin-bottom: 8px;
+      background-color: #eee;
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .cart-item {
+      margin: 4px 0;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .remove-btn {
+      color: red;
+      margin-right: 8px;
+      cursor: pointer;
+    }
+
+    input.customer, textarea.customer {
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">منوی کافه تراس</div>
+  <div class="menu" id="menu"></div>
+
+  <div id="cart">
+    <div id="cartHeader">🛒 سبد خرید</div>
+    <h4>🧺 سبد خرید</h4>
+    <div id="cartItems"></div>
+    <div style="margin-top:8px;font-weight:bold">جمع کل: <span id="totalPrice">0</span> تومان</div>
+    <textarea class="customer" id="customerNote" placeholder="توضیحات (اختیاری)"></textarea>
+    <button id="submitOrder">ارسال سفارش</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
+      authDomain: "cafeterrasapp.firebaseapp.com",
+      databaseURL: "https://cafeterrasapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cafeterrasapp",
+      storageBucket: "cafeterrasapp.appspot.com",
+      messagingSenderId: "574400800164",
+      appId: "1:574400800164:web:fc4bd509e158a6fbeecd31"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const itemsRef = ref(db, 'menuItems');
+    const pendingOrdersRef = ref(db, 'pendingOrders');
+
+    const menuDiv = document.getElementById("menu");
+    const cartDiv = document.getElementById("cart");
+    const cartItemsDiv = document.getElementById("cartItems");
+    const totalPriceSpan = document.getElementById("totalPrice");
+
+    let items = {}, cart = {};
+
+    function renderMenu(data) {
+      items = data || {};
+      menuDiv.innerHTML = "";
+      if (!Object.keys(items).length) {
+        menuDiv.innerHTML = "<p>منویی یافت نشد!</p>";
+        return;
+      }
+      Object.entries(data).sort((a, b) => (a[1].position || 0) - (b[1].position || 0)).forEach(([key, item]) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${item.img}" alt="${item.name}" />
+          <div class="name">${item.name}</div>
+          <div class="desc">${item.desc}</div>
+          <div class="price">${item.price.toLocaleString()} تومان</div>
+          <button onclick="addToCart('${key}')">افزودن</button>
+        `;
+        menuDiv.appendChild(card);
+      });
+    }
+
+    window.addToCart = (key) => {
+      const item = items[key];
+      if (!item) return;
+      cart[key] ? cart[key].qty++ : cart[key] = { ...item, qty: 1 };
+      cartDiv.style.display = "block";
+      renderCart();
+    };
+
+    function renderCart() {
+      cartItemsDiv.innerHTML = "";
+      let total = 0;
+      if (Object.keys(cart).length === 0) {
+        cartDiv.style.display = "none";
+        return;
+      }
+      Object.entries(cart).forEach(([key, i]) => {
+        const row = document.createElement("div");
+        row.className = "cart-item";
+        row.innerHTML = `
+          <span>${i.name} × ${i.qty} = ${(i.qty * i.price).toLocaleString()} تومان</span>
+          <span class="remove-btn" onclick="removeFromCart('${key}')">✖</span>
+        `;
+        cartItemsDiv.appendChild(row);
+        total += i.qty * i.price;
+      });
+      totalPriceSpan.textContent = total.toLocaleString();
+      cartDiv.style.display = "block";
+    }
+
+    window.removeFromCart = (key) => {
+      delete cart[key];
+      renderCart();
+    };
+
+    document.getElementById("submitOrder").onclick = () => {
+      if (!Object.keys(cart).length) {
+        alert("سبد خرید خالی است!");
+        return;
+      }
+
+      const customerNote = document.getElementById("customerNote").value.trim();
+      const now = new Date();
+      const time = now.toLocaleTimeString("fa-IR");
+      const date = now.toLocaleDateString("fa-IR");
+
+      let total = 0;
+      Object.values(cart).forEach(i => {
+        total += i.qty * i.price;
+      });
+
+      let receipt = `🧾 سفارش مشتری\n----------------------\nتاریخ: ${date}    ساعت: ${time}\n`;
+      Object.values(cart).forEach(i => {
+        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} تومان\n`;
+      });
+      if (customerNote) {
+        receipt += `توضیحات: ${customerNote}\n`;
+      }
+      receipt += `----------------------\nجمع کل: ${total.toLocaleString()} تومان`;
+
+      push(pendingOrdersRef, {
+        date,
+        time,
+        receipt,
+        items: cart,
+        customerNote,
+        status: "pending"
+      });
+
+      alert("سفارش شما با موفقیت ارسال شد!");
+      cart = {};
+      renderCart();
+      document.getElementById("customerNote").value = "";
+    };
+
+    onValue(itemsRef, snapshot => {
+      const data = snapshot.val();
+      renderMenu(data);
+    });
+  </script>
+</body>
+</html>

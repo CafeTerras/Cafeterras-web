@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مدیریت سفارشات - کافه تراس</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      padding: 16px;
+    }
+
+    .title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
+    .order-card {
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-card pre {
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .settle-btn {
+      background: green;
+    }
+
+    .delete-btn {
+      background: red;
+    }
+
+    .edit-btn {
+      background: #f0a500; /* رنگ زرد برای دکمه ویرایش */
+    }
+
+    input.customer, textarea.customer {
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    .collapsible {
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 8px 0;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .collapsible-content {
+      display: none;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .collapsible-content.active {
+      display: block;
+      max-height: 600px;
+    }
+
+    .edit-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">مدیریت سفارشات کافه تراس</div>
+  <div id="orders"></div>
+  <audio id="notificationSound" src="https://www.soundjay.com/buttons/beep-01a.mp3"></audio>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
+      authDomain: "cafeterrasapp.firebaseapp.com",
+      databaseURL: "https://cafeterrasapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cafeterrasapp",
+      storageBucket: "cafeterrasapp.appspot.com",
+      messagingSenderId: "574400800164",
+      appId: "1:574400800164:web:fc4bd509e158a6fbeecd31"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const pendingOrdersRef = ref(db, 'pendingOrders');
+    const ordersRef = ref(db, 'orders');
+
+    const ordersDiv = document.getElementById("orders");
+    const notificationSound = document.getElementById("notificationSound");
+    let previousOrders = {};
+
+    function renderOrders(data) {
+      ordersDiv.innerHTML = "";
+      if (!data || !Object.keys(data).length) {
+        ordersDiv.innerHTML = "<p>سفارشی یافت نشد!</p>";
+        return;
+      }
+      Object.entries(data).forEach(([key, order]) => {
+        const card = document.createElement("div");
+        card.className = "order-card";
+        card.innerHTML = `
+          <pre>${order.receipt}</pre>
+          ${order.status !== "confirmed" ? `
+            <button class="edit-btn" onclick="toggleEditForm('${key}')">ویرایش سفارش</button>
+            <div class="collapsible-content" id="edit-${key}">
+              <h4>ویرایش سفارش</h4>
+              <div id="editItems-${key}"></div>
+              <textarea class="customer" id="customerNote-${key}" placeholder="توضیحات مشتری">${order.customerNote || ""}</textarea>
+              <button onclick="saveEdit('${key}')">ذخیره تغییرات</button>
+            </div>
+          ` : ""}
+          <button class="delete-btn" onclick="deleteOrder('${key}')">حذف سفارش</button>
+          <button onclick="confirmOrder('${key}')">تأیید سفارش</button>
+          ${order.status === "confirmed" ? `
+            <button class="collapsible" onclick="toggleCollapsible('${key}')">وارد کردن جزئیات تسویه</button>
+            <div class="collapsible-content" id="details-${key}">
+              <input type="text" class="customer" id="custName-${key}" placeholder="نام مشتری (اختیاری)" />
+              <input type="text" class="customer" id="custMobile-${key}" placeholder="شماره موبایل (اختیاری)" />
+              <input type="text" class="customer" id="tableNum-${key}" placeholder="شماره میز (اختیاری)" />
+              <hr>
+              <input type="text" class="customer" id="extraTitle-${key}" placeholder="عنوان سرویس اضافه (اختیاری)" />
+              <input type="number" class="customer" id="extraAmount-${key}" placeholder="مبلغ سرویس (تومان)" />
+              <input type="number" class="customer" id="discountAmount-${key}" placeholder="تخفیف (تومان)" />
+              <input type="number" class="customer" id="cashAmount-${key}" placeholder="دریافت نقدی (تومان)" />
+              <input type="number" class="customer" id="cardAmount-${key}" placeholder="دریافت با کارت بانکی (تومان)" />
+              <button class="settle-btn" onclick="settleOrder('${key}')">تأیید تسویه</button>
+            </div>
+          ` : ""}
+        `;
+        ordersDiv.appendChild(card);
+
+        // رندر آیتم‌های قابل ویرایش
+        if (order.status !== "confirmed") {
+          const editItemsDiv = document.getElementById(`editItems-${key}`);
+          editItemsDiv.innerHTML = ""; // پاک کردن برای جلوگیری از تکرار
+          Object.entries(order.items).forEach(([itemKey, item]) => {
+            const itemDiv = document.createElement("div");
+            itemDiv.className = "edit-item";
+            itemDiv.innerHTML = `
+              <span>${item.name} (${item.price.toLocaleString()} تومان)</span>
+              <input type="number" min="0" value="${item.qty}" id="qty-${key}-${itemKey}" style="width:60px;">
+              <button onclick="removeItem('${key}', '${itemKey}')">حذف</button>
+            `;
+            editItemsDiv.appendChild(itemDiv);
+          });
+        }
+      });
+    }
+
+    window.toggleEditForm = (key) => {
+      const editForm = document.getElementById(`edit-${key}`);
+      const isActive = editForm.classList.contains("active");
+      editForm.classList.toggle("active", !isActive);
+      const button = editForm.previousElementSibling;
+      button.textContent = isActive ? "ویرایش سفارش" : "مخفی کردن ویرایش";
+    };
+
+    window.toggleCollapsible = (key) => {
+      const content = document.getElementById(`details-${key}`);
+      content.classList.toggle("active");
+      const button = content.previousElementSibling;
+      button.textContent = content.classList.contains("active") ? "مخفی کردن جزئیات" : "وارد کردن جزئیات تسویه";
+    };
+
+    window.removeItem = (orderKey, itemKey) => {
+      onValue(ref(db, `pendingOrders/${orderKey}`), snapshot => {
+        const order = snapshot.val();
+        if (order.items[itemKey]) {
+          delete order.items[itemKey];
+          if (Object.keys(order.items).length === 0) {
+            remove(ref(db, `pendingOrders/${orderKey}`));
+          } else {
+            update(ref(db, `pendingOrders/${orderKey}`), { items: order.items });
+          }
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.saveEdit = (key) => {
+      onValue(ref(db, `pendingOrders/${key}`), snapshot => {
+        const order = snapshot.val();
+        const newItems = {};
+        Object.keys(order.items).forEach(itemKey => {
+          const qty = parseInt(document.getElementById(`qty-${key}-${itemKey}`).value) || 0;
+          if (qty > 0) {
+            newItems[itemKey] = { ...order.items[itemKey], qty };
+          }
+        });
+        const customerNote = document.getElementById(`customerNote-${key}`).value.trim();
+        let total = 0;
+        Object.values(newItems).forEach(i => {
+          total += i.qty * i.price;
+        });
+
+        let receipt = `🧾 سفارش مشتری\n----------------------\nتاریخ: ${order.date}    ساعت: ${order.time}\n`;
+        Object.values(newItems).forEach(i => {
+          receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} تومان\n`;
+        });
+        if (customerNote) {
+          receipt += `توضیحات: ${customerNote}\n`;
+        }
+        receipt += `----------------------\nجمع کل: ${total.toLocaleString()} تومان`;
+
+        if (Object.keys(newItems).length === 0) {
+          remove(ref(db, `pendingOrders/${key}`));
+        } else {
+          update(ref(db, `pendingOrders/${key}`), {
+            items: newItems,
+            customerNote,
+            receipt
+          });
+        }
+        alert("تغییرات ذخیره شد!");
+      }, { onlyOnce: true });
+    };
+
+    window.deleteOrder = (key) => {
+      if (confirm("آیا مطمئن هستید که می‌خواهید این سفارش را حذف کنید؟")) {
+        remove(ref(db, `pendingOrders/${key}`));
+        alert("سفارش حذف شد!");
+      }
+    };
+
+    window.confirmOrder = (key) => {
+      update(ref(db, `pendingOrders/${key}`), { status: "confirmed" });
+    };
+
+    window.settleOrder = (key) => {
+      const extraTitle = document.getElementById(`extraTitle-${key}`).value.trim();
+      const extraAmount = parseInt(document.getElementById(`extraAmount-${key}`).value) || 0;
+      const discountAmount = parseInt(document.getElementById(`discountAmount-${key}`).value) || 0;
+      const cashAmount = parseInt(document.getElementById(`cashAmount-${key}`).value) || 0;
+      const cardAmount = parseInt(document.getElementById(`cardAmount-${key}`).value) || 0;
+      const name = document.getElementById(`custName-${key}`).value.trim();
+      const mobile = document.getElementById(`custMobile-${key}`).value.trim();
+      const table = document.getElementById(`tableNum-${key}`).value.trim();
+
+      onValue(ref(db, `pendingOrders/${key}`), snapshot => {
+        const order = snapshot.val();
+        let total = 0;
+        Object.values(order.items).forEach(i => {
+          total += i.qty * i.price;
+        });
+        if (extraTitle && extraAmount > 0) total += extraAmount;
+        if (discountAmount > 0) total -= discountAmount;
+
+        let receipt = `🧾 فاکتور رستورانی\n----------------------\nتاریخ: ${order.date}    ساعت: ${order.time}\n`;
+        if (name || mobile || table) {
+          receipt += `نام: ${name || "-"}   موبایل: ${mobile || "-"}   میز: ${table || "-"}\n`;
+        }
+        if (order.customerNote) {
+          receipt += `توضیحات مشتری: ${order.customerNote}\n`;
+        }
+        receipt += `----------------------\n`;
+        Object.values(order.items).forEach(i => {
+          receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} تومان\n`;
+        });
+        if (extraTitle && extraAmount > 0) {
+          receipt += `1× ${extraTitle} - ${extraAmount.toLocaleString()} تومان\n`;
+        }
+        if (discountAmount > 0) {
+          receipt += `تخفیف -${discountAmount.toLocaleString()} تومان\n`;
+        }
+        if (cashAmount > 0) {
+          receipt += `دریافت نقدی - ${cashAmount.toLocaleString()} تومان\n`;
+        }
+        if (cardAmount > 0) {
+          receipt += `دریافت با کارت بانکی - ${cardAmount.toLocaleString()} تومان\n`;
+        }
+        receipt += `----------------------\nجمع کل: ${total.toLocaleString()} تومان`;
+
+        push(ordersRef, {
+          date: order.date,
+          time: order.time,
+          name,
+          mobile,
+          table,
+          receipt,
+          items: order.items,
+          customerNote: order.customerNote,
+          extra: extraTitle && extraAmount > 0 ? { title: extraTitle, amount: extraAmount } : null,
+          discount: discountAmount,
+          cashAmount,
+          cardAmount,
+          status: "settled"
+        });
+
+        remove(ref(db, `pendingOrders/${key}`));
+        alert("فاکتور تسویه شد!");
+      }, { onlyOnce: true });
+    };
+
+    onValue(pendingOrdersRef, snapshot => {
+      const data = snapshot.val() || {};
+      if (Object.keys(data).length > Object.keys(previousOrders).length) {
+        const newOrderKeys = Object.keys(data).filter(key => !previousOrders[key]);
+        if (newOrderKeys.length > 0) {
+          notificationSound.play().catch(err => console.log("Error playing sound:", err));
+        }
+      }
+      previousOrders = { ...data };
+      renderOrders(data);
+    });
+  </script>
+</body>
+</html>
