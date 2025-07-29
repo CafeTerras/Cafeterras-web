@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,10 +7,16 @@
   <style>
     body {
       font-family: sans-serif;
-      background: #FFC107; /* زرد ون‌گوگ */
+      background: #FFC107; /* Yellow Van Gogh */
       padding: 16px;
       margin: 0;
       position: relative;
+    }
+
+    .logo {
+      width: 150px;
+      margin: 10px auto;
+      display: block;
     }
 
     .title {
@@ -18,7 +24,7 @@
       font-size: 24px;
       font-weight: bold;
       margin-bottom: 16px;
-      color: #1A237E; /* آبی تیره ون‌گوگ */
+      color: #1A237E; /* Dark Blue Van Gogh */
     }
 
     .tabs {
@@ -29,7 +35,7 @@
     }
 
     .tab {
-      background: #1A237E; /* آبی تیره */
+      background: #1A237E; /* Dark Blue */
       color: white;
       border: none;
       border-radius: 8px;
@@ -39,7 +45,7 @@
     }
 
     .tab.active {
-      background: #FFC107; /* زرد */
+      background: #FFC107; /* Yellow */
       color: #1A237E;
     }
 
@@ -51,11 +57,10 @@
     }
 
     .card {
-      background: white;
+      background: transparent;
       border-radius: 12px;
       width: 150px;
       padding: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       text-align: center;
       position: relative;
       cursor: pointer;
@@ -95,7 +100,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      background: rgba(0,0,0,0.7); /* پس‌زمینه نیمه‌شفاف */
+      background: rgba(0,0,0,0.7); /* Semi-transparent background */
       border-radius: 4px;
       padding: 2px 4px;
     }
@@ -114,8 +119,8 @@
     .quantity span {
       font-size: 14px;
       font-weight: bold;
-      color: #FFFFFF; /* سفید برای خوانایی */
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* سایه برای کنتراست */
+      color: #FFFFFF; /* White for readability */
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* Shadow for contrast */
     }
 
     #cartBtn {
@@ -136,7 +141,7 @@
     }
 
     #cartBtn.active {
-      border: 2px solid #FFC107; /* حاشیه زرد وقتی سبد پره */
+      border: 2px solid #FFC107; /* Yellow border when cart is full */
     }
 
     #cart {
@@ -144,13 +149,15 @@
       top: 0;
       right: -200px;
       width: 200px;
-      height: 100%;
+      min-height: 100px; /* ارتفاع حداقل */
+      max-height: 80vh; /* حداکثر ارتفاع پویا */
       background: white;
       border-radius: 12px 0 0 12px;
       box-shadow: -2px 0 8px rgba(0,0,0,0.2);
       padding: 16px;
       transition: right 0.3s ease-in-out;
       z-index: 10;
+      overflow-y: auto; /* اسکرول خودکار اگه آیتم‌ها زیاد بشن */
     }
 
     #cart.active {
@@ -181,8 +188,6 @@
     }
 
     #cartItems {
-      max-height: 50vh;
-      overflow-y: auto;
       margin-bottom: 12px;
     }
 
@@ -228,36 +233,53 @@
     }
 
     #cancelOrder {
-      background: #D32F2F; /* قرمز برای کنسل */
+      background: #D32F2F; /* Red for cancel */
+    }
+
+    #notification {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 20;
     }
   </style>
 </head>
 <body>
-  <div class="title"> Café Terras Menu </div>
+  <img src="https://i.ibb.co/xKwdZWkq/logo.png" alt="Café Terras Logo" class="logo">
+  <div class="title">Café Terras Menu</div>
   <div class="tabs">
-    <button class="tab active" onclick="filterMenu('all')">همه</button>
-    <button class="tab" onclick="filterMenu('coffee')">قهوه</button>
-    <button class="tab" onclick="filterMenu('food')">غذا</button>
-    <button class="tab" onclick="filterMenu('hot_drink')">نوشیدنی گرم</button>
-    <button class="tab" onclick="filterMenu('cold_drink')">نوشیدنی سرد</button>
+    <button class="tab active" onclick="filterMenu('all')">All</button>
+    <button class="tab" onclick="filterMenu('hot_coffee')">Hot Coffee</button>
+    <button class="tab" onclick="filterMenu('iced_coffee')">Iced Coffee</button>
+    <button class="tab" onclick="filterMenu('food')">Food & Dessert</button>
+    <button class="tab" onclick="filterMenu('hot_drink')">Hot Drinks</button>
+    <button class="tab" onclick="filterMenu('cold_drink')">Cold Drinks</button>
   </div>
   <div class="menu" id="menu"></div>
   <button id="cartBtn">🛒</button>
   <div id="cart">
     <div id="cartHeader">
-      <span>🛒 سبد خرید Café Terras</span>
+      <span>🛒 Shopping Cart</span>
       <button id="closeCart" onclick="closeCart()">×</button>
     </div>
     <div id="cartItems"></div>
-    <div class="cart-total">جمع کل: <span id="totalPrice">0</span> تومان</div>
-    <textarea class="customer" id="customerNote" placeholder="توضیحات (اختیاری)"></textarea>
-    <button id="cancelOrder" onclick="cancelOrder()">کنسل</button>
-    <button id="submitOrder">ارسال سفارش</button>
+    <div class="cart-total">Total: <span id="totalPrice">0</span> TOMAN</div>
+    <textarea class="customer" id="customerNote" placeholder="Notes (optional)"></textarea>
+    <button id="cancelOrder" onclick="cancelOrder()">Cancel</button>
+    <button id="submitOrder">Submit Order</button>
   </div>
+  <div id="notification"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
@@ -281,11 +303,20 @@
     const cartDiv = document.getElementById("cart");
     const totalPriceSpan = document.getElementById("totalPrice");
     const cartItemsDiv = document.getElementById("cartItems");
+    const notificationDiv = document.getElementById("notification");
+
+    function showNotification(message) {
+      notificationDiv.textContent = message;
+      notificationDiv.style.display = "block";
+      setTimeout(() => {
+        notificationDiv.style.display = "none";
+      }, 3000);
+    }
 
     function renderMenu() {
       menuDiv.innerHTML = "";
       if (!Object.keys(items).length) {
-        menuDiv.innerHTML = "<p>منویی یافت نشد!</p>";
+        menuDiv.innerHTML = "<p>No menu found!</p>";
         return;
       }
       Object.entries(items)
@@ -300,7 +331,7 @@
             <img src="${item.img}" alt="${item.name}" loading="lazy" />
             <div class="name">${item.name}</div>
             <div class="desc">${item.desc}</div>
-            <div class="price">${item.price.toLocaleString()} تومان</div>
+            <div class="price">${item.price.toLocaleString()} TOMAN</div>
             <div class="quantity" style="display:${qty > 0 ? 'flex' : 'none'}">
               <button onclick="updateQuantity('${key}', -1);event.stopPropagation();">-</button>
               <span>${qty}</span>
@@ -318,7 +349,7 @@
         div.className = "cart-item";
         div.innerHTML = `
           <span>${item.name}</span>
-          <span>${item.qty} عدد</span>
+          <span>${item.qty} units</span>
         `;
         cartItemsDiv.appendChild(div);
       });
@@ -338,7 +369,7 @@
       renderMenu();
       renderCart();
       updateTotal();
-      cartDiv.classList.add('active');
+      cartDiv.classList.add('active'); // باز کردن پنجره با اضافه کردن آیتم
     };
 
     window.updateQuantity = (key, change) => {
@@ -360,7 +391,7 @@
     };
 
     window.cancelOrder = () => {
-      console.log("Cancel button clicked"); // برای دیباگ
+      console.log("Cancel button clicked"); // For debugging
       cart = {};
       renderMenu();
       renderCart();
@@ -379,32 +410,50 @@
 
     document.getElementById("submitOrder").onclick = () => {
       if (!Object.keys(cart).length) {
-        alert("سبد خرید خالی است!");
+        alert("Shopping cart is empty!");
         return;
       }
       const customerNote = document.getElementById("customerNote").value.trim();
       const now = new Date();
-      const time = now.toLocaleTimeString("fa-IR");
-      const date = now.toLocaleDateString("fa-IR");
+      const time = now.toLocaleTimeString("en-US", { timeZone: "Asia/Tehran" });
+      const date = now.toLocaleDateString("en-US", { timeZone: "Asia/Tehran" });
       let total = 0;
       Object.values(cart).forEach(i => total += i.qty * i.price);
-      let receipt = `🧾 سفارش مشتری Café Terras\n----------------------\nتاریخ: ${date}    ساعت: ${time}\n`;
+      let receipt = `🧾 Café Terras Customer Order\n----------------------\nDate: ${date}    Time: ${time}\n`;
       Object.values(cart).forEach(i => {
-        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} تومان\n`;
+        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} TOMAN\n`;
       });
-      if (customerNote) receipt += `توضیحات: ${customerNote}\n`;
-      receipt += `----------------------\nجمع کل: ${total.toLocaleString()} تومان`;
+      if (customerNote) receipt += `Notes: ${customerNote}\n`;
+      receipt += `----------------------\nTotal: ${total.toLocaleString()} TOMAN`;
 
       push(pendingOrdersRef, {
         date, time, receipt, items: cart, customerNote, status: "pending"
-      });
-      alert("سفارش شما با موفقیت ارسال شد!");
-      cart = {};
-      renderMenu();
-      renderCart();
-      updateTotal();
-      document.getElementById("customerNote").value = "";
-      cartDiv.classList.remove('active');
+      })
+        .then(() => {
+          showNotification("Order submitted successfully!");
+          cart = {};
+          renderMenu();
+          renderCart();
+          updateTotal();
+          document.getElementById("customerNote").value = "";
+          cartDiv.classList.remove('active');
+        })
+        .catch((error) => {
+          console.error("Error submitting order:", error.message);
+          alert("Error submitting order! Check console for details.");
+        });
+    };
+
+    // تابع confirmOrder برای هماهنگی با order.html (اگه نیاز داری)
+    window.confirmOrder = (key) => {
+      update(ref(db, `pendingOrders/${key}`), { status: "confirmed" })
+        .then(() => {
+          showNotification("Order confirmed successfully!");
+        })
+        .catch((error) => {
+          console.error("Error confirming order:", error.message);
+          alert("Error confirming order! Check console for details.");
+        });
     };
 
     onValue(itemsRef, snapshot => {
