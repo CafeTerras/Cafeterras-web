@@ -21,20 +21,25 @@
     }
     body {
       font-family: sans-serif;
-      background: var(--primary-bg); /* فقط رنگ زرد ون‌گوگ بدون تصویر */
+      background: var(--primary-bg);
       padding: 16px;
     }
     h2 { text-align: center; margin-bottom: 20px; }
     .section { margin-bottom: 40px; }
     .item-card, .order-card {
-      background: rgba(255, 255, 255, 0.8); /* پس‌زمینه شفاف */
+      background: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
-      padding: 10.8px; /* 10% کوچکتر (90% of 12px) */
+      padding: 10.8px;
       margin-bottom: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      width: 90%; /* 10% کوچکتر */
+      width: 90%;
       margin-left: auto;
       margin-right: auto;
+    }
+    .item-card.disabled {
+      color: gray;
+      pointer-events: none;
+      opacity: 0.6;
     }
     input, button, select {
       padding: 6px;
@@ -190,14 +195,15 @@
       const img = document.getElementById('add-img').value.trim();
       const position = parseInt(document.getElementById('add-position').value);
       const category = document.getElementById('add-category').value;
-      if (!name || !price || !img || !category) return alert("Name, price, image, and category are required.");
-      const data = { name, desc, price, img, position, category };
+      const status = document.getElementById('add-status').value;
+      if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
+      const data = { name, desc, price, img, position, category, status };
       push(menuRef, data);
       resetForm();
     };
 
     window.resetForm = () => {
-      ['add-name', 'add-desc', 'add-price', 'add-img', 'add-position', 'add-category'].forEach(id => document.getElementById(id).value = '');
+      ['add-name', 'add-desc', 'add-price', 'add-img', 'add-position', 'add-category', 'add-status'].forEach(id => document.getElementById(id).value = '');
     };
 
     let currentFilter = 'all';
@@ -227,6 +233,12 @@
               <option value="cold_drink">Cold Drink</option>
               <option value="iced_coffee">Iced Coffee</option>
             </select>
+            <select id="add-status">
+              <option value="">Select Status</option>
+              <option value="Available">Available</option>
+              <option value="Not Available">Not Available</option>
+              <option value="Coming Soon">Coming Soon</option>
+            </select>
             <div class="item-actions">
               <button onclick="saveItem()">Save</button>
               <button onclick="resetForm()">New</button>
@@ -243,13 +255,14 @@
               'iced_coffee': 'Iced Coffee'
             }[item.category] || 'Unknown';
             const div = document.createElement('div');
-            div.className = 'item-card';
+            div.className = `item-card ${item.status === 'Not Available' ? 'disabled' : ''}`;
             div.innerHTML = `
               <img src="${item.img}" class="item-img" />
               <strong>${item.name}</strong>
               <div>${item.desc}</div>
               <div>${item.price.toLocaleString()} Toman</div>
               <div>Category: ${categoryLabel}</div>
+              <div>Status: ${item.status || 'Available'}</div>
               <div class="item-actions">
                 <button onclick="toggleEdit('${key}')">Edit</button>
                 <button onclick="duplicateItem('${key}')">Duplicate</button>
@@ -269,6 +282,11 @@
                   <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>Hot Drink</option>
                   <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>Cold Drink</option>
                   <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>Iced Coffee</option>
+                </select>
+                <select id="edit-status-${key}">
+                  <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
+                  <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>Not Available</option>
+                  <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>Coming Soon</option>
                 </select>
                 <button onclick="saveEdit('${key}')">Save</button>
                 <button onclick="cancelEdit('${key}')">Cancel</button>
@@ -296,14 +314,15 @@
       const img = document.getElementById(`edit-img-${key}`).value.trim();
       const position = parseInt(document.getElementById(`edit-position-${key}`).value);
       const category = document.getElementById(`edit-category-${key}`).value;
-      if (!name || !price || !img || !category) return alert("Name, price, image, and category are required.");
-      const data = { name, desc, price, img, position, category };
+      const status = document.getElementById(`edit-status-${key}`).value;
+      if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
+      const data = { name, desc, price, img, position, category, status };
       update(ref(db, `menuItems/${key}`), data);
-      toggleEdit(key); // بستن فرم بعد از ذخیره
+      toggleEdit(key);
     };
 
     window.cancelEdit = (key) => {
-      toggleEdit(key); // فقط بستن فرم بدون ذخیره
+      toggleEdit(key);
     };
 
     window.deleteItem = (key) => {
@@ -313,7 +332,7 @@
     window.duplicateItem = (key) => {
       onValue(ref(db, `menuItems/${key}`), snap => {
         const item = snap.val();
-        const newItem = { ...item, position: (item.position || 0) + 1 }; // اضافه کردن به انتها
+        const newItem = { ...item, position: (item.position || 0) + 1 };
         push(menuRef, newItem);
       });
     };
