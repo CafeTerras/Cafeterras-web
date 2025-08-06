@@ -327,7 +327,7 @@
     function renderMenu() {
       menuDiv.innerHTML = "";
       if (!Object.keys(items).length) {
-        menuDiv.innerHTML = "<p>No menu found!</p>";
+        menuDiv.innerHTML = "<p>No menu items found! Check Firebase database or network connection.</p>";
         return;
       }
       Object.entries(items)
@@ -466,7 +466,7 @@
         })
         .catch((error) => {
           console.error("Error submitting order:", error.message);
-          alert("Error submitting order! Check console for details.");
+          showNotification("Error submitting order! Check console for details.");
         });
     });
 
@@ -488,14 +488,19 @@
         })
         .catch((error) => {
           console.error("Error confirming order:", error.message);
-          alert("Error confirming order! Check console for details.");
+          showNotification("Error confirming order! Check console for details.");
         });
     };
 
+    // Load menu items with error handling
     onValue(itemsRef, snapshot => {
       items = snapshot.val() || {};
       renderMenu();
       renderCart();
+    }, (error) => {
+      console.error("Error loading menu items:", error.message);
+      menuDiv.innerHTML = "<p>Error loading menu! Check Firebase configuration or network.</p>";
+      showNotification("Failed to load menu items. Check console for details.");
     });
   </script>
 </body>
