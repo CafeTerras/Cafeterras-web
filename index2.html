@@ -255,24 +255,24 @@
   <img src="https://i.ibb.co/xKwdZWkq/logo.png" alt="Café Terras Logo" class="logo">
   <div class="title">Café Terras Menu</div>
   <div class="tabs">
-    <button class="tab active" onclick="filterMenu('all')">All</button>
-    <button class="tab" onclick="filterMenu('hot_coffee')">Hot Coffee</button>
-    <button class="tab" onclick="filterMenu('iced_coffee')">Iced Coffee</button>
-    <button class="tab" onclick="filterMenu('food')">Food & Dessert</button>
-    <button class="tab" onclick="filterMenu('hot_drink')">Hot Drinks</button>
-    <button class="tab" onclick="filterMenu('cold_drink')">Cold Drinks</button>
+    <button class="tab active" data-category="all">All</button>
+    <button class="tab" data-category="hot_coffee">Hot Coffee</button>
+    <button class="tab" data-category="iced_coffee">Iced Coffee</button>
+    <button class="tab" data-category="food">Food & Dessert</button>
+    <button class="tab" data-category="hot_drink">Hot Drinks</button>
+    <button class="tab" data-category="cold_drink">Cold Drinks</button>
   </div>
   <div class="menu" id="menu"></div>
   <button id="cartBtn">🛒</button>
   <div id="cart">
     <div id="cartHeader">
       <span>🛒 Shopping Cart</span>
-      <button id="closeCart" onclick="closeCart()">×</button>
+      <button id="closeCart">×</button>
     </div>
     <div id="cartItems"></div>
     <div class="cart-total">Total: <span id="totalPrice">0</span> TOMAN</div>
     <textarea class="customer" id="customerNote" placeholder="Notes (optional)"></textarea>
-    <button id="cancelOrder" onclick="cancelOrder()">Cancel</button>
+    <button id="cancelOrder">Cancel</button>
     <button id="submitOrder">Submit Order</button>
   </div>
   <div id="notification"></div>
@@ -336,7 +336,7 @@
         .forEach(([key, item]) => {
           const card = document.createElement("div");
           card.className = "card";
-          card.onclick = () => addToCart(key);
+          card.addEventListener('click', () => addToCart(key));
           const qty = cart[key]?.qty || 0;
           card.innerHTML = `
             <img src="${item.img}" alt="${item.name}" loading="lazy" />
@@ -344,9 +344,9 @@
             <div class="desc">${item.desc}</div>
             <div class="price">${item.price.toLocaleString()} TOMAN</div>
             <div class="quantity" style="display:${qty > 0 ? 'flex' : 'none'}">
-              <button onclick="updateQuantity('${key}', -1);event.stopPropagation();">-</button>
+              <button data-action="decrease" data-key="${key}">-</button>
               <span>${qty}</span>
-              <button onclick="updateQuantity('${key}', 1);event.stopPropagation();">+</button>
+              <button data-action="increase" data-key="${key}">+</button>
             </div>
           `;
           menuDiv.appendChild(card);
@@ -366,14 +366,14 @@
       });
     }
 
-    window.filterMenu = (category) => {
+    function filterMenu(category) {
       currentCategory = category;
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelector(`.tab[onclick="filterMenu('${category}')"]`).classList.add('active');
+      document.querySelector(`.tab[data-category="${category}"]`).classList.add('active');
       renderMenu();
-    };
+    }
 
-    window.addToCart = (key) => {
+    function addToCart(key) {
       const item = items[key];
       if (!item) return;
       cart[key] ? cart[key].qty++ : cart[key] = { ...item, qty: 1 };
@@ -381,9 +381,9 @@
       renderCart();
       updateTotal();
       cartDiv.classList.add('active');
-    };
+    }
 
-    window.updateQuantity = (key, change) => {
+    function updateQuantity(key, change) {
       if (!cart[key]) cart[key] = { ...items[key], qty: 0 };
       cart[key].qty = Math.max(0, cart[key].qty + change);
       if (cart[key].qty === 0) delete cart[key];
@@ -395,13 +395,13 @@
       } else {
         cartDiv.classList.remove('active');
       }
-    };
+    }
 
-    window.closeCart = () => {
+    function closeCart() {
       cartDiv.classList.remove('active');
-    };
+    }
 
-    window.cancelOrder = () => {
+    function cancelOrder() {
       console.log("Cancel button clicked");
       cart = {};
       renderMenu();
@@ -409,7 +409,7 @@
       updateTotal();
       cartDiv.classList.remove('active');
       document.getElementById("customerNote").value = "";
-    };
+    }
 
     function updateTotal() {
       let total = 0;
@@ -419,7 +419,19 @@
       cartBtn.classList.toggle('active', Object.keys(cart).length > 0);
     }
 
-    document.getElementById("submitOrder").onclick = () => {
+    // Attach event listeners for tab buttons
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => filterMenu(tab.dataset.category));
+    });
+
+    // Attach event listener for close cart button
+    document.getElementById('closeCart').addEventListener('click', closeCart);
+
+    // Attach event listener for cancel order button
+    document.getElementById('cancelOrder').addEventListener('click', cancelOrder);
+
+    // Attach event listener for submit order button
+    document.getElementById("submitOrder").addEventListener('click', () => {
       if (!Object.keys(cart).length) {
         alert("Shopping cart is empty!");
         return;
@@ -430,7 +442,7 @@
       Object.values(cart).forEach(i => total += i.qty * i.price);
       let receipt = `🧾 Café Terras Customer Order\n----------------------\nDate: ${persianDate}\n`;
       Object.values(cart).forEach(i => {
-        receipt += `${i.qty}× ${item.name} - ${(i.qty * i.price).toLocaleString()} TOMAN\n`;
+        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} TOMAN\n`;
       });
       if (customerNote) receipt += `Notes: ${customerNote}\n`;
       receipt += `----------------------\nTotal: ${total.toLocaleString()} TOMAN`;
@@ -456,8 +468,19 @@
           console.error("Error submitting order:", error.message);
           alert("Error submitting order! Check console for details.");
         });
-    };
+    });
 
+    // Attach event listener for quantity buttons
+    document.addEventListener('click', (event) => {
+      if (event.target.dataset.action && event.target.dataset.key) {
+        const key = event.target.dataset.key;
+        const change = event.target.dataset.action === 'increase' ? 1 : -1;
+        updateQuantity(key, change);
+        event.stopPropagation();
+      }
+    });
+
+    // Attach event listener for confirming orders
     window.confirmOrder = (key) => {
       update(ref(db, `pendingOrders/${key}`), { status: "confirmed" })
         .then(() => {
