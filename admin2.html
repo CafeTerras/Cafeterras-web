@@ -213,6 +213,26 @@
       loadMenu();
     };
 
+    window.updateItemStatus = (itemName, newStatus) => {
+      onValue(menuRef, snap => {
+        const data = snap.val() || {};
+        const itemKey = Object.keys(data).find(key => data[key].name.toLowerCase() === itemName.toLowerCase());
+        if (itemKey) {
+          update(ref(db, `menuItems/${itemKey}`), { status: newStatus })
+            .then(() => {
+              console.log(`Status of ${itemName} updated to ${newStatus}`);
+              loadMenu();
+            })
+            .catch(error => {
+              console.error("Error updating status:", error);
+              alert("Failed to update status.");
+            });
+        } else {
+          alert(`Item ${itemName} not found.`);
+        }
+      }, { onlyOnce: true });
+    };
+
     window.loadMenu = () => {
       onValue(menuRef, snap => {
         const data = snap.val() || {};
@@ -255,7 +275,7 @@
               'iced_coffee': 'Iced Coffee'
             }[item.category] || 'Unknown';
             const div = document.createElement('div');
-            div.className = `item-card ${item.status === 'Not Available' ? 'disabled' : ''}`;
+            div.className = 'item-card'; // Removed disabled class condition
             div.innerHTML = `
               <img src="${item.img}" class="item-img" />
               <strong>${item.name}</strong>
@@ -418,7 +438,9 @@
       return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
     }
 
-    loadMenu();
+    window.onload = () => {
+      loadMenu();
+    };
   </script>
 </body>
 </html>
