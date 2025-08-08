@@ -66,6 +66,12 @@
       cursor: pointer;
     }
 
+    .card.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     .card img {
       width: 100px;
       height: 100px;
@@ -149,15 +155,15 @@
       top: 0;
       right: -200px;
       width: 200px;
-      min-height: 100px; /* ارتفاع حداقل */
-      max-height: 80vh; /* حداکثر ارتفاع پویا */
+      min-height: 100px; /* Minimum height */
+      max-height: 80vh; /* Dynamic max height */
       background: white;
       border-radius: 12px 0 0 12px;
       box-shadow: -2px 0 8px rgba(0,0,0,0.2);
       padding: 16px;
       transition: right 0.3s ease-in-out;
       z-index: 10;
-      overflow-y: auto; /* اسکرول خودکار اگه آیتم‌ها زیاد بشن */
+      overflow-y: auto; /* Auto scroll if items overflow */
     }
 
     #cart.active {
@@ -323,9 +329,10 @@
         .filter(([_, item]) => currentCategory === 'all' || item.category === currentCategory)
         .sort((a, b) => (a[1].position || 0) - (b[1].position || 0))
         .forEach(([key, item]) => {
+          const isDisabled = item.status === "Not Available" || item.status === "Coming soon";
           const card = document.createElement("div");
-          card.className = "card";
-          card.onclick = () => addToCart(key);
+          card.className = `card ${isDisabled ? 'disabled' : ''}`;
+          if (!isDisabled) card.onclick = () => addToCart(key);
           const qty = cart[key]?.qty || 0;
           card.innerHTML = `
             <img src="${item.img}" alt="${item.name}" loading="lazy" />
@@ -364,12 +371,12 @@
 
     window.addToCart = (key) => {
       const item = items[key];
-      if (!item) return;
+      if (!item || item.status === "Not Available" || item.status === "Coming soon") return;
       cart[key] ? cart[key].qty++ : cart[key] = { ...item, qty: 1 };
       renderMenu();
       renderCart();
       updateTotal();
-      cartDiv.classList.add('active'); // باز کردن پنجره با اضافه کردن آیتم
+      cartDiv.classList.add('active');
     };
 
     window.updateQuantity = (key, change) => {
@@ -391,7 +398,7 @@
     };
 
     window.cancelOrder = () => {
-      console.log("Cancel button clicked"); // For debugging
+      console.log("Cancel button clicked");
       cart = {};
       renderMenu();
       renderCart();
@@ -415,16 +422,16 @@
       }
       const customerNote = document.getElementById("customerNote").value.trim();
       const now = new Date();
-      const time = now.toLocaleTimeString("en-US", { timeZone: "Asia/Tehran" });
-      const date = now.toLocaleDateString("en-US", { timeZone: "Asia/Tehran" });
+      const time = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran" });
+      const date = now.toLocaleDateString("fa-IR", { timeZone: "Asia/Tehran" });
       let total = 0;
       Object.values(cart).forEach(i => total += i.qty * i.price);
       let receipt = `🧾 Café Terras Customer Order\n----------------------\nDate: ${date}    Time: ${time}\n`;
       Object.values(cart).forEach(i => {
-        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} TOMAN\n`;
+        receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString("fa-IR")} TOMAN\n`;
       });
       if (customerNote) receipt += `Notes: ${customerNote}\n`;
-      receipt += `----------------------\nTotal: ${total.toLocaleString()} TOMAN`;
+      receipt += `----------------------\nTotal: ${total.toLocaleString("fa-IR")} TOMAN`;
 
       push(pendingOrdersRef, {
         date, time, receipt, items: cart, customerNote, status: "pending"
@@ -444,7 +451,6 @@
         });
     };
 
-    // تابع confirmOrder برای هماهنگی با order.html (اگه نیاز داری)
     window.confirmOrder = (key) => {
       update(ref(db, `pendingOrders/${key}`), { status: "confirmed" })
         .then(() => {
