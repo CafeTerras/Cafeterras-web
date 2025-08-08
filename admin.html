@@ -213,6 +213,26 @@
       loadMenu();
     };
 
+    window.updateItemStatus = (itemName, newStatus) => {
+      onValue(menuRef, snap => {
+        const data = snap.val() || {};
+        const itemKey = Object.keys(data).find(key => data[key].name.toLowerCase() === itemName.toLowerCase());
+        if (itemKey) {
+          update(ref(db, `menuItems/${itemKey}`), { status: newStatus })
+            .then(() => {
+              console.log(`Status of ${itemName} updated to ${newStatus}`);
+              loadMenu();
+            })
+            .catch(error => {
+              console.error("Error updating status:", error);
+              alert("Failed to update status.");
+            });
+        } else {
+          alert(`Item ${itemName} not found.`);
+        }
+      }, { onlyOnce: true });
+    };
+
     window.loadMenu = () => {
       onValue(menuRef, snap => {
         const data = snap.val() || {};
@@ -387,7 +407,7 @@
             Object.values(order.items).forEach(i => {
               if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
               stats[i.name].qty += i.qty;
-              stats[i.name].revenue += i.qty * i.price;
+              status[i.name].revenue += i.qty * i.price;
               total += i.qty * i.price;
             });
           }
@@ -418,7 +438,11 @@
       return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
     }
 
-    loadMenu();
+    // Automatically update the status of "Tomato Pasta" to "Available" when the page loads
+    window.onload = () => {
+      loadMenu();
+      updateItemStatus("Tomato Pasta", "Available");
+    };
   </script>
 </body>
 </html>
