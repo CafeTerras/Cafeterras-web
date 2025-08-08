@@ -26,7 +26,7 @@
     }
     h2 { text-align: center; margin-bottom: 20px; }
     .section { margin-bottom: 40px; }
-    .item-card, .order-card {
+    .item-card, .order-card, .inventory-card {
       background: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
       padding: 10.8px;
@@ -35,11 +35,6 @@
       width: 90%;
       margin-left: auto;
       margin-right: auto;
-    }
-    .item-card.disabled {
-      color: gray;
-      pointer-events: none;
-      opacity: 0.6;
     }
     input, button, select {
       padding: 6px;
@@ -114,6 +109,40 @@
     .filter-buttons button {
       margin: 0 5px;
     }
+    .ingredient-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .ingredient-row input {
+      flex: 1;
+    }
+    .ingredient-row button {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .add-ingredient-btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .notification-bar {
+      background: #d32f2f;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      text-align: center;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -125,6 +154,7 @@
     }
   </script>
 
+  <div id="notification-bar" class="notification-bar"></div>
   <h2><span class="header-box">Café Terras Menu Management</span></h2>
   <div style="text-align:center; margin-bottom: 20px;">
     <a href="https://console.firebase.google.com/project/cafeterrasapp" target="_blank">
@@ -166,6 +196,11 @@
     <button onclick="loadStatsModal('all')">All</button>
   </div>
 
+  <div class="section">
+    <h3><span class="header-box">Inventory Management</span></h3>
+    <button onclick="loadInventoryModal()">Inventory</button>
+  </div>
+
   <div id="modal" class="modal" style="display:none;"></div>
   <div id="reportModal" class="modal-report" style="display:none;"></div>
   <div id="overlay" class="overlay" style="display:none;" onclick="closeModal()"></div>
@@ -197,7 +232,7 @@
       const category = document.getElementById('add-category').value;
       const status = document.getElementById('add-status').value;
       if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
-      const data = { name, desc, price, img, position, category, status };
+      const data = { name, desc, price, img, position, category, status, ingredients: {} };
       push(menuRef, data);
       resetForm();
     };
@@ -233,10 +268,77 @@
       }, { onlyOnce: true });
     };
 
+    window.addIngredientRow = (key) => {
+      const ingredientsContainer = document.getElementById(`ingredients-container-${key}`);
+      const index = ingredientsContainer.querySelectorAll('.ingredient-row').length;
+      const newRow = document.createElement('div');
+      newRow.className = 'ingredient-row';
+      newRow.innerHTML = `
+        <input id="edit-ing-name-${key}-${index}" placeholder="Ingredient Name" />
+        <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" />
+        <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" />
+        <input id="edit-ing-stock-${key}-${index}" placeholder="Stock" type="number" step="0.01" />
+        <input id="edit-ing-threshold-${key}-${index}" placeholder="Threshold" type="number" step="0.01" />
+        <button onclick="removeIngredientRow(this)">حذف</button>
+      `;
+      ingredientsContainer.appendChild(newRow);
+    };
+
+    window.removeIngredientRow = (button) => {
+      button.parentElement.remove();
+    };
+
     window.loadMenu = () => {
       onValue(menuRef, snap => {
         const data = snap.val() || {};
         const container = document.getElementById('menuItems');
+        const notificationBar = document.getElementById('notification-bar');
+        let lowStockWarnings = [];
+
+        // Calculate consumption and check for low stock
+        onValue(ordersRef, snap => {
+          const ordersData = snap.val() || {};
+          const inventory = {};
+          // Calculate total consumption based on orders
+          Object.values(ordersData).forEach(order => {
+            Object.values(order.items).forEach(item => {
+              const menuItem = Object.values(data).find(m => m.name === item.name);
+              if (menuItem && menuItem.ingredients) {
+                Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
+                  if (!inventory[ingName]) {
+                    inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+                  }
+                  inventory[ingName].consumed += item.qty * ingData.quantity;
+                });
+              }
+            });
+          });
+          // Update stock from menu items
+          Object.values(data).forEach(item => {
+            if (item.ingredients) {
+              Object.entries(item.ingredients).forEach(([ingName, ingData]) => {
+                if (inventory[ingName]) {
+                  inventory[ingName].stock += ingData.stock || 0;
+                } else {
+                  inventory[ingName] = { stock: ingData.stock || 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+                }
+                // Check for low stock
+                const remaining = inventory[ingName].stock - inventory[ingName].consumed;
+                if (remaining < inventory[ingName].threshold) {
+                  lowStockWarnings.push(`${ingName}: ${remaining.toFixed(2)} ${ingData.unit} (کمتر از آستانه ${ingData.threshold} ${ingData.unit})`);
+                }
+              });
+            }
+          });
+          // Display notifications
+          if (lowStockWarnings.length > 0) {
+            notificationBar.style.display = 'block';
+            notificationBar.innerHTML = `<strong>هشدار موجودی کم:</strong> ${lowStockWarnings.join(', ')}`;
+          } else {
+            notificationBar.style.display = 'none';
+          }
+        }, { onlyOnce: true });
+
         container.innerHTML = `
           <div class="item-card">
             <strong>New Item</strong>
@@ -275,7 +377,21 @@
               'iced_coffee': 'Iced Coffee'
             }[item.category] || 'Unknown';
             const div = document.createElement('div');
-            div.className = 'item-card'; // Removed disabled class condition
+            div.className = 'item-card';
+            let ingredientsHtml = '';
+            const ingredients = item.ingredients || {};
+            Object.entries(ingredients).forEach(([ingName, ingData], index) => {
+              ingredientsHtml += `
+                <div class="ingredient-row">
+                  <input id="edit-ing-name-${key}-${index}" placeholder="Ingredient Name" value="${ingName}" />
+                  <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" value="${ingData.quantity || 0}" />
+                  <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" value="${ingData.unit || ''}" />
+                  <input id="edit-ing-stock-${key}-${index}" placeholder="Stock" type="number" step="0.01" value="${ingData.stock || 0}" />
+                  <input id="edit-ing-threshold-${key}-${index}" placeholder="Threshold" type="number" step="0.01" value="${ingData.threshold || 0}" />
+                  <button onclick="removeIngredientRow(this)">حذف</button>
+                </div>
+              `;
+            });
             div.innerHTML = `
               <img src="${item.img}" class="item-img" />
               <strong>${item.name}</strong>
@@ -308,6 +424,11 @@
                   <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>Not Available</option>
                   <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>Coming Soon</option>
                 </select>
+                <strong>Ingredients</strong>
+                <div id="ingredients-container-${key}">
+                  ${ingredientsHtml}
+                </div>
+                <button class="add-ingredient-btn" onclick="addIngredientRow('${key}')">افزودن ماده اولیه</button>
                 <button onclick="saveEdit('${key}')">Save</button>
                 <button onclick="cancelEdit('${key}')">Cancel</button>
               </div>
@@ -336,7 +457,20 @@
       const category = document.getElementById(`edit-category-${key}`).value;
       const status = document.getElementById(`edit-status-${key}`).value;
       if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
-      const data = { name, desc, price, img, position, category, status };
+      const ingredients = {};
+      let index = 0;
+      while (document.getElementById(`edit-ing-name-${key}-${index}`)) {
+        const ingName = document.getElementById(`edit-ing-name-${key}-${index}`).value.trim();
+        const ingQuantity = parseFloat(document.getElementById(`edit-ing-quantity-${key}-${index}`).value);
+        const ingUnit = document.getElementById(`edit-ing-unit-${key}-${index}`).value.trim();
+        const ingStock = parseFloat(document.getElementById(`edit-ing-stock-${key}-${index}`).value);
+        const ingThreshold = parseFloat(document.getElementById(`edit-ing-threshold-${key}-${index}`).value);
+        if (ingName && ingQuantity && ingUnit && ingStock >= 0 && ingThreshold >= 0) {
+          ingredients[ingName] = { quantity: ingQuantity, unit: ingUnit, stock: ingStock, threshold: ingThreshold };
+        }
+        index++;
+      }
+      const data = { name, desc, price, img, position, category, status, ingredients };
       update(ref(db, `menuItems/${key}`), data);
       toggleEdit(key);
     };
@@ -416,6 +550,58 @@
           modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} units - ${stat.revenue.toLocaleString()} Toman</div>`;
         });
         modal.innerHTML += `<hr><strong>Total Revenue: ${total.toLocaleString()} Toman</strong>`;
+      }, { onlyOnce: true });
+    };
+
+    window.loadInventoryModal = () => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('reportModal');
+      modal.style.display = 'block';
+      modal.innerHTML = `<h3>Inventory Status</h3><button onclick="closeModal()">Close</button><button onclick="loadInventoryModal()">Refresh</button>`;
+      onValue(menuRef, snap => {
+        const menuData = snap.val() || {};
+        onValue(ordersRef, snap => {
+          const ordersData = snap.val() || {};
+          const inventory = {};
+          // Calculate total consumption based on orders
+          Object.values(ordersData).forEach(order => {
+            Object.values(order.items).forEach(item => {
+              const menuItem = Object.values(menuData).find(m => m.name === item.name);
+              if (menuItem && menuItem.ingredients) {
+                Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
+                  if (!inventory[ingName]) {
+                    inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+                  }
+                  inventory[ingName].consumed += item.qty * ingData.quantity;
+                });
+              }
+            });
+          });
+          // Update stock from menu items
+          Object.values(menuData).forEach(item => {
+            if (item.ingredients) {
+              Object.entries(item.ingredients).forEach(([ingName, ingData]) => {
+                if (inventory[ingName]) {
+                  inventory[ingName].stock += ingData.stock || 0;
+                } else {
+                  inventory[ingName] = { stock: ingData.stock || 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+                }
+              });
+            }
+          });
+          // Display inventory
+          Object.entries(inventory).forEach(([ingName, ingData]) => {
+            modal.innerHTML += `
+              <div class="inventory-card">
+                <strong>${ingName}</strong>
+                <div>Stock: ${ingData.stock.toFixed(2)} ${ingData.unit}</div>
+                <div>Consumed: ${ingData.consumed.toFixed(2)} ${ingData.unit}</div>
+                <div>Remaining: ${(ingData.stock - ingData.consumed).toFixed(2)} ${ingData.unit}</div>
+                <div>Threshold: ${ingData.threshold.toFixed(2)} ${ingData.unit}</div>
+              </div>
+            `;
+          });
+        }, { onlyOnce: true });
       }, { onlyOnce: true });
     };
 
