@@ -149,15 +149,15 @@
       top: 0;
       right: -200px;
       width: 200px;
-      min-height: 100px;
-      max-height: 80vh;
+      min-height: 100px; /* ارتفاع حداقل */
+      max-height: 80vh; /* حداکثر ارتفاع پویا */
       background: white;
       border-radius: 12px 0 0 12px;
       box-shadow: -2px 0 8px rgba(0,0,0,0.2);
       padding: 16px;
       transition: right 0.3s ease-in-out;
       z-index: 10;
-      overflow-y: auto;
+      overflow-y: auto; /* اسکرول خودکار اگه آیتم‌ها زیاد بشن */
     }
 
     #cart.active {
@@ -255,24 +255,24 @@
   <img src="https://i.ibb.co/xKwdZWkq/logo.png" alt="Café Terras Logo" class="logo">
   <div class="title">Café Terras Menu</div>
   <div class="tabs">
-    <button class="tab active" data-category="all">All</button>
-    <button class="tab" data-category="hot_coffee">Hot Coffee</button>
-    <button class="tab" data-category="iced_coffee">Iced Coffee</button>
-    <button class="tab" data-category="food">Food & Dessert</button>
-    <button class="tab" data-category="hot_drink">Hot Drinks</button>
-    <button class="tab" data-category="cold_drink">Cold Drinks</button>
+    <button class="tab active" onclick="filterMenu('all')">All</button>
+    <button class="tab" onclick="filterMenu('hot_coffee')">Hot Coffee</button>
+    <button class="tab" onclick="filterMenu('iced_coffee')">Iced Coffee</button>
+    <button class="tab" onclick="filterMenu('food')">Food & Dessert</button>
+    <button class="tab" onclick="filterMenu('hot_drink')">Hot Drinks</button>
+    <button class="tab" onclick="filterMenu('cold_drink')">Cold Drinks</button>
   </div>
   <div class="menu" id="menu"></div>
   <button id="cartBtn">🛒</button>
   <div id="cart">
     <div id="cartHeader">
       <span>🛒 Shopping Cart</span>
-      <button id="closeCart">×</button>
+      <button id="closeCart" onclick="closeCart()">×</button>
     </div>
     <div id="cartItems"></div>
     <div class="cart-total">Total: <span id="totalPrice">0</span> TOMAN</div>
     <textarea class="customer" id="customerNote" placeholder="Notes (optional)"></textarea>
-    <button id="cancelOrder">Cancel</button>
+    <button id="cancelOrder" onclick="cancelOrder()">Cancel</button>
     <button id="submitOrder">Submit Order</button>
   </div>
   <div id="notification"></div>
@@ -280,7 +280,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-    import "https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/js/persian-date.min.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
@@ -314,20 +313,10 @@
       }, 3000);
     }
 
-    function getIRSTTimestamp() {
-      const now = new Date();
-      const irstOffsetMs = 3.5 * 60 * 60 * 1000;
-      const irstTime = new Date(now.getTime() + irstOffsetMs);
-      return {
-        timestamp: irstTime.getTime(),
-        persianDate: new persianDate(irstTime).format('YYYY/MM/DD HH:mm:ss')
-      };
-    }
-
     function renderMenu() {
       menuDiv.innerHTML = "";
       if (!Object.keys(items).length) {
-        menuDiv.innerHTML = "<p>No menu items found! Check Firebase database or network connection.</p>";
+        menuDiv.innerHTML = "<p>No menu found!</p>";
         return;
       }
       Object.entries(items)
@@ -336,7 +325,7 @@
         .forEach(([key, item]) => {
           const card = document.createElement("div");
           card.className = "card";
-          card.addEventListener('click', () => addToCart(key));
+          card.onclick = () => addToCart(key);
           const qty = cart[key]?.qty || 0;
           card.innerHTML = `
             <img src="${item.img}" alt="${item.name}" loading="lazy" />
@@ -344,9 +333,9 @@
             <div class="desc">${item.desc}</div>
             <div class="price">${item.price.toLocaleString()} TOMAN</div>
             <div class="quantity" style="display:${qty > 0 ? 'flex' : 'none'}">
-              <button data-action="decrease" data-key="${key}">-</button>
+              <button onclick="updateQuantity('${key}', -1);event.stopPropagation();">-</button>
               <span>${qty}</span>
-              <button data-action="increase" data-key="${key}">+</button>
+              <button onclick="updateQuantity('${key}', 1);event.stopPropagation();">+</button>
             </div>
           `;
           menuDiv.appendChild(card);
@@ -366,24 +355,24 @@
       });
     }
 
-    function filterMenu(category) {
+    window.filterMenu = (category) => {
       currentCategory = category;
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelector(`.tab[data-category="${category}"]`).classList.add('active');
+      document.querySelector(`.tab[onclick="filterMenu('${category}')"]`).classList.add('active');
       renderMenu();
-    }
+    };
 
-    function addToCart(key) {
+    window.addToCart = (key) => {
       const item = items[key];
       if (!item) return;
       cart[key] ? cart[key].qty++ : cart[key] = { ...item, qty: 1 };
       renderMenu();
       renderCart();
       updateTotal();
-      cartDiv.classList.add('active');
-    }
+      cartDiv.classList.add('active'); // باز کردن پنجره با اضافه کردن آیتم
+    };
 
-    function updateQuantity(key, change) {
+    window.updateQuantity = (key, change) => {
       if (!cart[key]) cart[key] = { ...items[key], qty: 0 };
       cart[key].qty = Math.max(0, cart[key].qty + change);
       if (cart[key].qty === 0) delete cart[key];
@@ -395,21 +384,21 @@
       } else {
         cartDiv.classList.remove('active');
       }
-    }
+    };
 
-    function closeCart() {
+    window.closeCart = () => {
       cartDiv.classList.remove('active');
-    }
+    };
 
-    function cancelOrder() {
-      console.log("Cancel button clicked");
+    window.cancelOrder = () => {
+      console.log("Cancel button clicked"); // For debugging
       cart = {};
       renderMenu();
       renderCart();
       updateTotal();
       cartDiv.classList.remove('active');
       document.getElementById("customerNote").value = "";
-    }
+    };
 
     function updateTotal() {
       let total = 0;
@@ -419,28 +408,18 @@
       cartBtn.classList.toggle('active', Object.keys(cart).length > 0);
     }
 
-    // Attach event listeners for tab buttons
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => filterMenu(tab.dataset.category));
-    });
-
-    // Attach event listener for close cart button
-    document.getElementById('closeCart').addEventListener('click', closeCart);
-
-    // Attach event listener for cancel order button
-    document.getElementById('cancelOrder').addEventListener('click', cancelOrder);
-
-    // Attach event listener for submit order button
-    document.getElementById("submitOrder").addEventListener('click', () => {
+    document.getElementById("submitOrder").onclick = () => {
       if (!Object.keys(cart).length) {
         alert("Shopping cart is empty!");
         return;
       }
       const customerNote = document.getElementById("customerNote").value.trim();
-      const { timestamp, persianDate } = getIRSTTimestamp();
+      const now = new Date();
+      const time = now.toLocaleTimeString("en-US", { timeZone: "Asia/Tehran" });
+      const date = now.toLocaleDateString("en-US", { timeZone: "Asia/Tehran" });
       let total = 0;
       Object.values(cart).forEach(i => total += i.qty * i.price);
-      let receipt = `🧾 Café Terras Customer Order\n----------------------\nDate: ${persianDate}\n`;
+      let receipt = `🧾 Café Terras Customer Order\n----------------------\nDate: ${date}    Time: ${time}\n`;
       Object.values(cart).forEach(i => {
         receipt += `${i.qty}× ${i.name} - ${(i.qty * i.price).toLocaleString()} TOMAN\n`;
       });
@@ -448,12 +427,7 @@
       receipt += `----------------------\nTotal: ${total.toLocaleString()} TOMAN`;
 
       push(pendingOrdersRef, {
-        timestamp,
-        persianDate,
-        receipt,
-        items: cart,
-        customerNote,
-        status: "pending"
+        date, time, receipt, items: cart, customerNote, status: "pending"
       })
         .then(() => {
           showNotification("Order submitted successfully!");
@@ -466,21 +440,11 @@
         })
         .catch((error) => {
           console.error("Error submitting order:", error.message);
-          showNotification("Error submitting order! Check console for details.");
+          alert("Error submitting order! Check console for details.");
         });
-    });
+    };
 
-    // Attach event listener for quantity buttons
-    document.addEventListener('click', (event) => {
-      if (event.target.dataset.action && event.target.dataset.key) {
-        const key = event.target.dataset.key;
-        const change = event.target.dataset.action === 'increase' ? 1 : -1;
-        updateQuantity(key, change);
-        event.stopPropagation();
-      }
-    });
-
-    // Attach event listener for confirming orders
+    // تابع confirmOrder برای هماهنگی با order.html (اگه نیاز داری)
     window.confirmOrder = (key) => {
       update(ref(db, `pendingOrders/${key}`), { status: "confirmed" })
         .then(() => {
@@ -488,19 +452,14 @@
         })
         .catch((error) => {
           console.error("Error confirming order:", error.message);
-          showNotification("Error confirming order! Check console for details.");
+          alert("Error confirming order! Check console for details.");
         });
     };
 
-    // Load menu items with error handling
     onValue(itemsRef, snapshot => {
       items = snapshot.val() || {};
       renderMenu();
       renderCart();
-    }, (error) => {
-      console.error("Error loading menu items:", error.message);
-      menuDiv.innerHTML = "<p>Error loading menu! Check Firebase configuration or network.</p>";
-      showNotification("Failed to load menu items. Check console for details.");
     });
   </script>
 </body>
