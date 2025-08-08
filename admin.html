@@ -275,7 +275,7 @@
               'iced_coffee': 'Iced Coffee'
             }[item.category] || 'Unknown';
             const div = document.createElement('div');
-            div.className = `item-card ${item.status === 'Not Available' ? 'disabled' : ''}`;
+            div.className = 'item-card'; // Removed disabled class condition
             div.innerHTML = `
               <img src="${item.img}" class="item-img" />
               <strong>${item.name}</strong>
@@ -407,7 +407,7 @@
             Object.values(order.items).forEach(i => {
               if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
               stats[i.name].qty += i.qty;
-              status[i.name].revenue += i.qty * i.price;
+              stats[i.name].revenue += i.qty * i.price;
               total += i.qty * i.price;
             });
           }
@@ -438,10 +438,8 @@
       return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
     }
 
-    // Automatically update the status of "Tomato Pasta" to "Available" when the page loads
     window.onload = () => {
       loadMenu();
-      updateItemStatus("Tomato Pasta", "Available");
     };
   </script>
 </body>
