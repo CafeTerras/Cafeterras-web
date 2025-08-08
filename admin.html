@@ -396,7 +396,7 @@
               <img src="${item.img}" class="item-img" />
               <strong>${item.name}</strong>
               <div>${item.desc}</div>
-              <div>${item.price.toLocaleString()} Toman</div>
+              <div>${item.price.toLocaleString('fa-IR')} Toman</div>
               <div>Category: ${categoryLabel}</div>
               <div>Status: ${item.status || 'Available'}</div>
               <div class="item-actions">
@@ -512,18 +512,29 @@
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>Orders</h3><button onclick="closeModal()">Close</button><button onclick="loadReportModal('${type}')">Refresh</button>`;
+      modal.innerHTML = `<h3>سفارش‌ها</h3><button onclick="closeModal()">بستن</button><button onclick="loadReportModal('${type}')">به‌روزرسانی</button>`;
       const range = getDateFilter(type);
       onValue(ordersRef, snap => {
         const data = snap.val() || {};
         let total = 0;
         Object.entries(data).forEach(([key, order]) => {
-          if (!range || (order.date >= range.start && order.date <= range.end)) {
+          const orderDate = new Date(order.date);
+          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
+          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
             total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
-            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><button onclick="deleteOrder('${key}')">Delete</button></div>`;
+            const formattedDate = orderDate.toLocaleString('fa-IR', { 
+              timeZone: 'Asia/Tehran',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><div>تاریخ: ${formattedDate}</div><button onclick="deleteOrder('${key}')">حذف</button></div>`;
           }
         });
-        modal.innerHTML += `<hr><strong>Total: ${total.toLocaleString()} Toman</strong>`;
+        modal.innerHTML += `<hr><strong>جمع کل: ${total.toLocaleString('fa-IR')} تومان</strong>`;
       }, { onlyOnce: true });
     };
 
@@ -531,13 +542,15 @@
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>Sales Statistics</h3><button onclick="closeModal()">Close</button><button onclick="loadStatsModal('${type}')">Refresh</button>`;
+      modal.innerHTML = `<h3>آمار فروش</h3><button onclick="closeModal()">بستن</button><button onclick="loadStatsModal('${type}')">به‌روزرسانی</button>`;
       const range = getDateFilter(type);
       onValue(ordersRef, snap => {
         const data = snap.val() || {};
         const stats = {}; let total = 0;
         Object.values(data).forEach(order => {
-          if (!range || (order.date >= range.start && order.date <= range.end)) {
+          const orderDate = new Date(order.date);
+          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
+          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
             Object.values(order.items).forEach(i => {
               if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
               stats[i.name].qty += i.qty;
@@ -547,9 +560,9 @@
           }
         });
         Object.entries(stats).forEach(([name, stat]) => {
-          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} units - ${stat.revenue.toLocaleString()} Toman</div>`;
+          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} واحد - ${stat.revenue.toLocaleString('fa-IR')} تومان</div>`;
         });
-        modal.innerHTML += `<hr><strong>Total Revenue: ${total.toLocaleString()} Toman</strong>`;
+        modal.innerHTML += `<hr><strong>جمع درآمد: ${total.toLocaleString('fa-IR')} تومان</strong>`;
       }, { onlyOnce: true });
     };
 
@@ -557,7 +570,7 @@
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>Inventory Status</h3><button onclick="closeModal()">Close</button><button onclick="loadInventoryModal()">Refresh</button>`;
+      modal.innerHTML = `<h3>وضعیت موجودی</h3><button onclick="closeModal()">بستن</button><button onclick="loadInventoryModal()">به‌روزرسانی</button>`;
       onValue(menuRef, snap => {
         const menuData = snap.val() || {};
         onValue(ordersRef, snap => {
@@ -594,10 +607,10 @@
             modal.innerHTML += `
               <div class="inventory-card">
                 <strong>${ingName}</strong>
-                <div>Stock: ${ingData.stock.toFixed(2)} ${ingData.unit}</div>
-                <div>Consumed: ${ingData.consumed.toFixed(2)} ${ingData.unit}</div>
-                <div>Remaining: ${(ingData.stock - ingData.consumed).toFixed(2)} ${ingData.unit}</div>
-                <div>Threshold: ${ingData.threshold.toFixed(2)} ${ingData.unit}</div>
+                <div>موجودی: ${ingData.stock.toFixed(2)} ${ingData.unit}</div>
+                <div>مصرف‌شده: ${ingData.consumed.toFixed(2)} ${ingData.unit}</div>
+                <div>باقیمانده: ${(ingData.stock - ingData.consumed).toFixed(2)} ${ingData.unit}</div>
+                <div>آستانه: ${ingData.threshold.toFixed(2)} ${ingData.unit}</div>
               </div>
             `;
           });
@@ -606,7 +619,7 @@
     };
 
     window.deleteOrder = (key) => {
-      if (confirm("Are you sure you want to delete this order?")) remove(ref(db, `orders/${key}`));
+      if (confirm("آیا مطمئن هستید که می‌خواهید این سفارش را حذف کنید؟")) remove(ref(db, `orders/${key}`));
     };
 
     window.closeModal = () => {
@@ -616,12 +629,30 @@
     };
 
     function getDateFilter(type) {
+      // Get current date in IRST (UTC+3:30)
       const now = new Date();
-      const start = new Date();
-      if (type === 'yesterday') start.setDate(start.getDate() - 1);
-      else if (type === 'month') start.setDate(1);
-      else if (type !== 'today') return null;
-      return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
+      now.setTime(now.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST
+      const start = new Date(now);
+      const end = new Date(now);
+
+      if (type === 'today') {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+      } else if (type === 'yesterday') {
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+      } else if (type === 'month') {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(end.getDate());
+        end.setHours(23, 59, 59, 999);
+      } else if (type === 'all') {
+        return null;
+      }
+
+      return { start, end };
     }
 
     window.onload = () => {
