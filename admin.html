@@ -200,7 +200,7 @@
     <h3><span class="header-box">Inventory Management</span></h3>
     <button onclick="loadInventoryModal()">Inventory</button>
     <div class="item-card">
-      <strong>Stock</strong>
+      <strong>Add New Stock</strong>
       <input id="stock-name" placeholder="Ingredient Name" />
       <input id="stock-quantity" placeholder="Quantity" type="number" step="0.01" />
       <input id="stock-unit" placeholder="Unit" />
@@ -208,6 +208,19 @@
       <div class="item-actions">
         <button onclick="saveStock()">Save</button>
         <button onclick="resetStockForm()">Clear</button>
+      </div>
+    </div>
+    <div class="item-card">
+      <strong>Update Existing Stock</strong>
+      <select id="update-stock-name" onchange="loadStockDetails()">
+        <option value="">Select Ingredient</option>
+      </select>
+      <input id="update-stock-quantity" placeholder="Add Quantity" type="number" step="0.01" />
+      <input id="update-stock-unit" placeholder="Unit" readonly />
+      <input id="update-stock-threshold" placeholder="Threshold" type="number" step="0.01" />
+      <div class="item-actions">
+        <button onclick="updateStock()">Update</button>
+        <button onclick="resetUpdateStockForm()">Clear</button>
       </div>
     </div>
   </div>
@@ -264,12 +277,71 @@
       const data = { name, quantity, unit, threshold };
       push(stockRef, data).then(() => {
         loadStockIngredients();
+        populateStockDropdown();
       });
       resetStockForm();
     };
 
     window.resetStockForm = () => {
       ['stock-name', 'stock-quantity', 'stock-unit', 'stock-threshold'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.loadStockDetails = () => {
+      const select = document.getElementById('update-stock-name');
+      const selectedName = select.value;
+      const ingredient = Object.values(stockIngredients).find(ing => ing.name === selectedName);
+      if (ingredient) {
+        document.getElementById('update-stock-unit').value = ingredient.unit || '';
+        document.getElementById('update-stock-threshold').value = ingredient.threshold || '';
+        document.getElementById('update-stock-quantity').value = '';
+      } else {
+        document.getElementById('update-stock-unit').value = '';
+        document.getElementById('update-stock-threshold').value = '';
+        document.getElementById('update-stock-quantity').value = '';
+      }
+    };
+
+    window.updateStock = () => {
+      const select = document.getElementById('update-stock-name');
+      const name = select.value;
+      const addQuantity = parseFloat(document.getElementById('update-stock-quantity').value) || 0;
+      const unit = document.getElementById('update-stock-unit').value.trim();
+      const threshold = parseFloat(document.getElementById('update-stock-threshold').value);
+      if (!name || !unit || !threshold) return alert("Name, unit, and threshold are required.");
+      
+      onValue(stockRef, snap => {
+        const stockData = snap.val() || {};
+        const stockKey = Object.keys(stockData).find(key => stockData[key].name === name);
+        if (stockKey) {
+          const currentQuantity = stockData[stockKey].quantity || 0;
+          const newQuantity = currentQuantity + addQuantity;
+          update(ref(db, `stock/${stockKey}`), { quantity: newQuantity, unit, threshold })
+            .then(() => {
+              loadStockIngredients();
+              populateStockDropdown();
+              resetUpdateStockForm();
+              alert("Stock updated successfully!");
+            })
+            .catch(error => {
+              console.error("Error updating stock:", error);
+              alert("Failed to update stock.");
+            });
+        } else {
+          alert("Ingredient not found.");
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.resetUpdateStockForm = () => {
+      ['update-stock-name', 'update-stock-quantity', 'update-stock-unit', 'update-stock-threshold'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.populateStockDropdown = () => {
+      const select = document.getElementById('update-stock-name');
+      select.innerHTML = '<option value="">Select Ingredient</option>';
+      Object.values(stockIngredients).forEach(ing => {
+        select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
+      });
     };
 
     let currentFilter = 'all';
@@ -302,7 +374,8 @@
     window.loadStockIngredients = () => {
       onValue(stockRef, snap => {
         stockIngredients = snap.val() || {};
-      }, { onlyOnce: true });
+        populateStockDropdown();
+      });
     };
 
     window.addIngredientRow = (key) => {
