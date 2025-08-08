@@ -1,13 +1,18 @@
+
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Café Terras</title>
+  <!-- Add jalali-moment library -->
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/min/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jalali-moment@3.3.10/dist/jalali-moment.min.js"></script>
   <style>
+    /* Existing styles remain unchanged */
     :root {
-      --primary-bg: #FFC107; /* Van Gogh Yellow */
-      --primary-color: #1A237E; /* Van Gogh Dark Blue */
+      --primary-bg: #FFC107;
+      --primary-color: #1A237E;
     }
     .header-box {
       background: white;
@@ -208,6 +213,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    // Initialize jalali-moment
+    moment.locale('fa');
+    moment.loadPersian({ usePersianDigits: true });
 
     const app = initializeApp({
       apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
@@ -518,9 +527,18 @@
         const data = snap.val() || {};
         let total = 0;
         Object.entries(data).forEach(([key, order]) => {
-          if (!range || (order.date >= range.start && order.date <= range.end)) {
+          // Convert order.date to Jalali format for comparison
+          const orderDate = moment(order.date, 'YYYY-MM-DD').tz('Asia/Tehran').format('jYYYY/jMM/jDD');
+          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
             total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
-            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><button onclick="deleteOrder('${key}')">Delete</button></div>`;
+            // Display order date in Persian format
+            const formattedDate = moment(order.date, 'YYYY-MM-DD').tz('Asia/Tehran').format('jYYYY/jMM/jDD HH:mm:ss');
+            modal.innerHTML += `
+              <div class='order-card'>
+                <pre>${order.receipt}</pre>
+                <div>تاریخ: ${formattedDate}</div>
+                <button onclick="deleteOrder('${key}')">Delete</button>
+              </div>`;
           }
         });
         modal.innerHTML += `<hr><strong>Total: ${total.toLocaleString()} Toman</strong>`;
@@ -537,7 +555,8 @@
         const data = snap.val() || {};
         const stats = {}; let total = 0;
         Object.values(data).forEach(order => {
-          if (!range || (order.date >= range.start && order.date <= range.end)) {
+          const orderDate = moment(order.date, 'YYYY-MM-DD').tz('Asia/Tehran').format('jYYYY/jMM/jDD');
+          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
             Object.values(order.items).forEach(i => {
               if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
               stats[i.name].qty += i.qty;
@@ -563,7 +582,6 @@
         onValue(ordersRef, snap => {
           const ordersData = snap.val() || {};
           const inventory = {};
-          // Calculate total consumption based on orders
           Object.values(ordersData).forEach(order => {
             Object.values(order.items).forEach(item => {
               const menuItem = Object.values(menuData).find(m => m.name === item.name);
@@ -577,7 +595,6 @@
               }
             });
           });
-          // Update stock from menu items
           Object.values(menuData).forEach(item => {
             if (item.ingredients) {
               Object.entries(item.ingredients).forEach(([ingName, ingData]) => {
@@ -589,7 +606,6 @@
               });
             }
           });
-          // Display inventory
           Object.entries(inventory).forEach(([ingName, ingData]) => {
             modal.innerHTML += `
               <div class="inventory-card">
@@ -616,12 +632,19 @@
     };
 
     function getDateFilter(type) {
-      const now = new Date();
-      const start = new Date();
-      if (type === 'yesterday') start.setDate(start.getDate() - 1);
-      else if (type === 'month') start.setDate(1);
-      else if (type !== 'today') return null;
-      return { start: start.toLocaleDateString('fa-IR'), end: now.toLocaleDateString('fa-IR') };
+      const now = moment().tz('Asia/Tehran');
+      const start = moment().tz('Asia/Tehran');
+      if (type === 'yesterday') {
+        start.subtract(1, 'days');
+      } else if (type === 'month') {
+        start.startOf('jMonth');
+      } else if (type !== 'today') {
+        return null;
+      }
+      return {
+        start: start.format('jYYYY/jMM/jDD'),
+        end: now.format('jYYYY/jMM/jDD')
+      };
     }
 
     window.onload = () => {
