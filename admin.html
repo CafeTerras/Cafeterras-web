@@ -23,9 +23,12 @@
       font-family: sans-serif;
       background: var(--primary-bg);
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
     }
     h2 { text-align: center; margin-bottom: 20px; }
-    .section { margin-bottom: 40px; }
+    .section { margin-bottom: 40px; width: 100%; }
     .item-card, .order-card, .inventory-card {
       background: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
@@ -35,6 +38,10 @@
       width: 90%;
       margin-left: auto;
       margin-right: auto;
+    }
+    .stock-form-card {
+      width: fit-content;
+      max-width: 300px;
     }
     input, button, select {
       padding: 6px;
@@ -86,12 +93,6 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 12px;
-    }
-    .item-card {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
     }
     .edit-form {
       display: none;
@@ -181,25 +182,10 @@
   </div>
 
   <div class="section">
-    <h3><span class="header-box">Order History</span></h3>
-    <button onclick="loadReportModal('today')">Today</button>
-    <button onclick="loadReportModal('yesterday')">Yesterday</button>
-    <button onclick="loadReportModal('month')">Monthly</button>
-    <button onclick="loadReportModal('all')">All</button>
-  </div>
-
-  <div class="section">
-    <h3><span class="header-box">Sales Statistics</span></h3>
-    <button onclick="loadStatsModal('today')">Today</button>
-    <button onclick="loadStatsModal('yesterday')">Yesterday</button>
-    <button onclick="loadStatsModal('month')">Monthly</button>
-    <button onclick="loadStatsModal('all')">All</button>
-  </div>
-
-  <div class="section">
     <h3><span class="header-box">Inventory Management</span></h3>
     <button onclick="loadInventoryModal()">Inventory</button>
-    <div class="item-card">
+    <button onclick="generateShoppingList()">لیست خرید</button>
+    <div class="item-card stock-form-card">
       <strong>Add New Stock</strong>
       <input id="stock-name" placeholder="Ingredient Name" />
       <input id="stock-quantity" placeholder="Quantity" type="number" step="0.01" />
@@ -210,7 +196,7 @@
         <button onclick="resetStockForm()">Clear</button>
       </div>
     </div>
-    <div class="item-card">
+    <div class="item-card stock-form-card">
       <strong>Update Existing Stock</strong>
       <select id="update-stock-name" onchange="loadStockDetails()">
         <option value="">Select Ingredient</option>
@@ -249,6 +235,7 @@
     const stockRef = ref(db, 'stock');
 
     let stockIngredients = {};
+    let lowStockWarnings = [];
 
     window.saveItem = () => {
       const name = document.getElementById('add-name').value.trim();
@@ -274,6 +261,8 @@
       const unit = document.getElementById('stock-unit').value.trim();
       const threshold = parseFloat(document.getElementById('stock-threshold').value);
       if (!name || !quantity || !unit || !threshold) return alert("Name, quantity, unit, and threshold are required.");
+      const invalidChars = /[.#$/[\]]/;
+      if (invalidChars.test(name)) return alert("نام ماده اولیه نمی‌تواند شامل کاراکترهای . # $ / [ ] باشد.");
       const data = { name, quantity, unit, threshold };
       push(stockRef, data).then(() => {
         loadStockIngredients();
@@ -411,7 +400,7 @@
         const data = snap.val() || {};
         const container = document.getElementById('menuItems');
         const notificationBar = document.getElementById('notification-bar');
-        let lowStockWarnings = [];
+        lowStockWarnings = [];
 
         // Calculate consumption and check for low stock
         onValue(ordersRef, snap => {
@@ -593,6 +582,13 @@
         }
         index++;
       }
+      const invalidChars = /[.#$/[\]]/;
+      for (const ingKey in ingredients) {
+        if (invalidChars.test(ingKey)) {
+          alert(`نام ماده اولیه "${ingKey}" شامل کاراکترهای نامعتبر است: . # $ / [ ]`);
+          return;
+        }
+      }
       const data = { name, desc, price, img, position, category, status, ingredients };
       update(ref(db, `menuItems/${key}`), data);
       toggleEdit(key);
@@ -631,62 +627,25 @@
       }, { onlyOnce: true });
     };
 
-    window.loadReportModal = (type) => {
-      document.getElementById('overlay').style.display = 'block';
-      const modal = document.getElementById('reportModal');
-      modal.style.display = 'block';
-      modal.innerHTML = `<h3>سفارش‌ها</h3><button onclick="closeModal()">بستن</button><button onclick="loadReportModal('${type}')">به‌روزرسانی</button>`;
-      const range = getDateFilter(type);
-      onValue(ordersRef, snap => {
-        const data = snap.val() || {};
-        let total = 0;
-        Object.entries(data).forEach(([key, order]) => {
-          const orderDate = new Date(order.date);
-          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
-          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
-            total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
-            const formattedDate = orderDate.toLocaleString('fa-IR', { 
-              timeZone: 'Asia/Tehran',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><div>تاریخ: ${formattedDate}</div><button onclick="deleteOrder('${key}')">حذف</button></div>`;
-          }
+    window.generateShoppingList = () => {
+      if (lowStockWarnings.length === 0) {
+        alert('هیچ موردی به سطح هشدار نرسیده است.');
+        return;
+      }
+      const listText = `لیست خرید:\n${lowStockWarnings.join('\n')}`;
+      if (navigator.share) {
+        navigator.share({
+          title: 'لیست خرید کافه تراس',
+          text: listText
+        }).then(() => {
+          console.log('Shared successfully');
+        }).catch((error) => {
+          console.error('Error sharing', error);
+          alert(listText); // fallback
         });
-        modal.innerHTML += `<hr><strong>جمع کل: ${total.toLocaleString('fa-IR')} تومان</strong>`;
-      }, { onlyOnce: true });
-    };
-
-    window.loadStatsModal = (type) => {
-      document.getElementById('overlay').style.display = 'block';
-      const modal = document.getElementById('reportModal');
-      modal.style.display = 'block';
-      modal.innerHTML = `<h3>آمار فروش</h3><button onclick="closeModal()">بستن</button><button onclick="loadStatsModal('${type}')">به‌روزرسانی</button>`;
-      const range = getDateFilter(type);
-      onValue(ordersRef, snap => {
-        const data = snap.val() || {};
-        const stats = {}; let total = 0;
-        Object.values(data).forEach(order => {
-          const orderDate = new Date(order.date);
-          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
-          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
-            Object.values(order.items).forEach(i => {
-              if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
-              stats[i.name].qty += i.qty;
-              stats[i.name].revenue += i.qty * i.price;
-              total += i.qty * i.price;
-            });
-          }
-        });
-        Object.entries(stats).forEach(([name, stat]) => {
-          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} واحد - ${stat.revenue.toLocaleString('fa-IR')} تومان</div>`;
-        });
-        modal.innerHTML += `<hr><strong>جمع درآمد: ${total.toLocaleString('fa-IR')} تومان</strong>`;
-      }, { onlyOnce: true });
+      } else {
+        alert(listText); // fallback for browsers without share API
+      }
     };
 
     window.loadInventoryModal = () => {
@@ -747,42 +706,11 @@
       }, { onlyOnce: true });
     };
 
-    window.deleteOrder = (key) => {
-      if (confirm("آیا مطمئن هستید که می‌خواهید این سفارش را حذف کنید؟")) remove(ref(db, `orders/${key}`));
-    };
-
     window.closeModal = () => {
       document.getElementById('modal').style.display = 'none';
       document.getElementById('reportModal').style.display = 'none';
       document.getElementById('overlay').style.display = 'none';
     };
-
-    function getDateFilter(type) {
-      // Get current date in IRST (UTC+3:30)
-      const now = new Date();
-      now.setTime(now.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST
-      const start = new Date(now);
-      const end = new Date(now);
-
-      if (type === 'today') {
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'yesterday') {
-        start.setDate(start.getDate() - 1);
-        start.setHours(0, 0, 0, 0);
-        end.setDate(end.getDate() - 1);
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'month') {
-        start.setDate(1);
-        start.setHours(0, 0, 0, 0);
-        end.setDate(end.getDate());
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'all') {
-        return null;
-      }
-
-      return { start, end };
-    }
 
     window.onload = () => {
       loadStockIngredients();
