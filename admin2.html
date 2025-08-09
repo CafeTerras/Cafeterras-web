@@ -114,7 +114,7 @@
       gap: 4px;
       align-items: center;
     }
-    .ingredient-row input {
+    .ingredient-row input, .ingredient-row select {
       flex: 1;
     }
     .ingredient-row button {
@@ -199,6 +199,30 @@
   <div class="section">
     <h3><span class="header-box">Inventory Management</span></h3>
     <button onclick="loadInventoryModal()">Inventory</button>
+    <div class="item-card">
+      <strong>Add New Stock</strong>
+      <input id="stock-name" placeholder="Ingredient Name" />
+      <input id="stock-quantity" placeholder="Quantity" type="number" step="0.01" />
+      <input id="stock-unit" placeholder="Unit" />
+      <input id="stock-threshold" placeholder="Threshold" type="number" step="0.01" />
+      <div class="item-actions">
+        <button onclick="saveStock()">Save</button>
+        <button onclick="resetStockForm()">Clear</button>
+      </div>
+    </div>
+    <div class="item-card">
+      <strong>Update Existing Stock</strong>
+      <select id="update-stock-name" onchange="loadStockDetails()">
+        <option value="">Select Ingredient</option>
+      </select>
+      <input id="update-stock-quantity" placeholder="Add Quantity" type="number" step="0.01" />
+      <input id="update-stock-unit" placeholder="Unit" readonly />
+      <input id="update-stock-threshold" placeholder="Threshold" type="number" step="0.01" />
+      <div class="item-actions">
+        <button onclick="updateStock()">Update</button>
+        <button onclick="resetUpdateStockForm()">Clear</button>
+      </div>
+    </div>
   </div>
 
   <div id="modal" class="modal" style="display:none;"></div>
@@ -222,6 +246,9 @@
     const db = getDatabase(app);
     const menuRef = ref(db, 'menuItems');
     const ordersRef = ref(db, 'orders');
+    const stockRef = ref(db, 'stock');
+
+    let stockIngredients = {};
 
     window.saveItem = () => {
       const name = document.getElementById('add-name').value.trim();
@@ -239,6 +266,82 @@
 
     window.resetForm = () => {
       ['add-name', 'add-desc', 'add-price', 'add-img', 'add-position', 'add-category', 'add-status'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.saveStock = () => {
+      const name = document.getElementById('stock-name').value.trim();
+      const quantity = parseFloat(document.getElementById('stock-quantity').value);
+      const unit = document.getElementById('stock-unit').value.trim();
+      const threshold = parseFloat(document.getElementById('stock-threshold').value);
+      if (!name || !quantity || !unit || !threshold) return alert("Name, quantity, unit, and threshold are required.");
+      const data = { name, quantity, unit, threshold };
+      push(stockRef, data).then(() => {
+        loadStockIngredients();
+        populateStockDropdown();
+      });
+      resetStockForm();
+    };
+
+    window.resetStockForm = () => {
+      ['stock-name', 'stock-quantity', 'stock-unit', 'stock-threshold'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.loadStockDetails = () => {
+      const select = document.getElementById('update-stock-name');
+      const selectedName = select.value;
+      const ingredient = Object.values(stockIngredients).find(ing => ing.name === selectedName);
+      if (ingredient) {
+        document.getElementById('update-stock-unit').value = ingredient.unit || '';
+        document.getElementById('update-stock-threshold').value = ingredient.threshold || '';
+        document.getElementById('update-stock-quantity').value = '';
+      } else {
+        document.getElementById('update-stock-unit').value = '';
+        document.getElementById('update-stock-threshold').value = '';
+        document.getElementById('update-stock-quantity').value = '';
+      }
+    };
+
+    window.updateStock = () => {
+      const select = document.getElementById('update-stock-name');
+      const name = select.value;
+      const addQuantity = parseFloat(document.getElementById('update-stock-quantity').value) || 0;
+      const unit = document.getElementById('update-stock-unit').value.trim();
+      const threshold = parseFloat(document.getElementById('update-stock-threshold').value);
+      if (!name || !unit || !threshold) return alert("Name, unit, and threshold are required.");
+      
+      onValue(stockRef, snap => {
+        const stockData = snap.val() || {};
+        const stockKey = Object.keys(stockData).find(key => stockData[key].name === name);
+        if (stockKey) {
+          const currentQuantity = stockData[stockKey].quantity || 0;
+          const newQuantity = currentQuantity + addQuantity;
+          update(ref(db, `stock/${stockKey}`), { quantity: newQuantity, unit, threshold })
+            .then(() => {
+              loadStockIngredients();
+              populateStockDropdown();
+              resetUpdateStockForm();
+              alert("Stock updated successfully!");
+            })
+            .catch(error => {
+              console.error("Error updating stock:", error);
+              alert("Failed to update stock.");
+            });
+        } else {
+          alert("Ingredient not found.");
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.resetUpdateStockForm = () => {
+      ['update-stock-name', 'update-stock-quantity', 'update-stock-unit', 'update-stock-threshold'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.populateStockDropdown = () => {
+      const select = document.getElementById('update-stock-name');
+      select.innerHTML = '<option value="">Select Ingredient</option>';
+      Object.values(stockIngredients).forEach(ing => {
+        select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
+      });
     };
 
     let currentFilter = 'all';
@@ -268,20 +371,35 @@
       }, { onlyOnce: true });
     };
 
+    window.loadStockIngredients = () => {
+      onValue(stockRef, snap => {
+        stockIngredients = snap.val() || {};
+        populateStockDropdown();
+      });
+    };
+
     window.addIngredientRow = (key) => {
       const ingredientsContainer = document.getElementById(`ingredients-container-${key}`);
       const index = ingredientsContainer.querySelectorAll('.ingredient-row').length;
       const newRow = document.createElement('div');
       newRow.className = 'ingredient-row';
       newRow.innerHTML = `
-        <input id="edit-ing-name-${key}-${index}" placeholder="Ingredient Name" />
+        <select id="edit-ing-name-${key}-${index}" onchange="updateUnit('${key}', ${index})">
+          <option value="">Select Ingredient</option>
+          ${Object.values(stockIngredients).map(ing => `<option value="${ing.name}">${ing.name}</option>`).join('')}
+        </select>
         <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" />
-        <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" />
-        <input id="edit-ing-stock-${key}-${index}" placeholder="Stock" type="number" step="0.01" />
-        <input id="edit-ing-threshold-${key}-${index}" placeholder="Threshold" type="number" step="0.01" />
+        <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" readonly />
         <button onclick="removeIngredientRow(this)">حذف</button>
       `;
       ingredientsContainer.appendChild(newRow);
+    };
+
+    window.updateUnit = (key, index) => {
+      const select = document.getElementById(`edit-ing-name-${key}-${index}`);
+      const unitInput = document.getElementById(`edit-ing-unit-${key}-${index}`);
+      const selectedIngredient = Object.values(stockIngredients).find(ing => ing.name === select.value);
+      unitInput.value = selectedIngredient ? selectedIngredient.unit : '';
     };
 
     window.removeIngredientRow = (button) => {
@@ -298,143 +416,150 @@
         // Calculate consumption and check for low stock
         onValue(ordersRef, snap => {
           const ordersData = snap.val() || {};
-          const inventory = {};
-          // Calculate total consumption based on orders
-          Object.values(ordersData).forEach(order => {
-            Object.values(order.items).forEach(item => {
-              const menuItem = Object.values(data).find(m => m.name === item.name);
-              if (menuItem && menuItem.ingredients) {
-                Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
-                  if (!inventory[ingName]) {
-                    inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
-                  }
-                  inventory[ingName].consumed += item.qty * ingData.quantity;
-                });
-              }
-            });
-          });
-          // Update stock from menu items
-          Object.values(data).forEach(item => {
-            if (item.ingredients) {
-              Object.entries(item.ingredients).forEach(([ingName, ingData]) => {
-                if (inventory[ingName]) {
-                  inventory[ingName].stock += ingData.stock || 0;
-                } else {
-                  inventory[ingName] = { stock: ingData.stock || 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
-                }
-                // Check for low stock
-                const remaining = inventory[ingName].stock - inventory[ingName].consumed;
-                if (remaining < inventory[ingName].threshold) {
-                  lowStockWarnings.push(`${ingName}: ${remaining.toFixed(2)} ${ingData.unit} (کمتر از آستانه ${ingData.threshold} ${ingData.unit})`);
+          onValue(stockRef, stockSnap => {
+            const stockData = stockSnap.val() || {};
+            const inventory = {};
+            // Calculate total consumption based on orders
+            Object.values(ordersData).forEach(order => {
+              Object.values(order.items).forEach(item => {
+                const menuItem = Object.values(data).find(m => m.name === item.name);
+                if (menuItem && menuItem.ingredients) {
+                  Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
+                    if (!inventory[ingName]) {
+                      inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+                    }
+                    inventory[ingName].consumed += item.qty * ingData.quantity;
+                  });
                 }
               });
+            });
+            // Update stock from stock data
+            Object.values(stockData).forEach(stock => {
+              if (inventory[stock.name]) {
+                inventory[stock.name].stock = stock.quantity;
+                inventory[stock.name].unit = stock.unit;
+                inventory[stock.name].threshold = stock.threshold;
+              } else {
+                inventory[stock.name] = { 
+                  stock: stock.quantity || 0, 
+                  consumed: 0, 
+                  unit: stock.unit, 
+                  threshold: stock.threshold || 0 
+                };
+              }
+              // Check for low stock
+              const remaining = inventory[stock.name].stock - inventory[stock.name].consumed;
+              if (remaining < inventory[stock.name].threshold) {
+                lowStockWarnings.push(`${stock.name}: ${remaining.toFixed(2)} ${stock.unit} (کمتر از آستانه ${stock.threshold} ${stock.unit})`);
+              }
+            });
+            // Display notifications
+            if (lowStockWarnings.length > 0) {
+              notificationBar.style.display = 'block';
+              notificationBar.innerHTML = `<strong>هشدار موجودی کم:</strong> ${lowStockWarnings.join(', ')}`;
+            } else {
+              notificationBar.style.display = 'none';
             }
-          });
-          // Display notifications
-          if (lowStockWarnings.length > 0) {
-            notificationBar.style.display = 'block';
-            notificationBar.innerHTML = `<strong>هشدار موجودی کم:</strong> ${lowStockWarnings.join(', ')}`;
-          } else {
-            notificationBar.style.display = 'none';
-          }
-        }, { onlyOnce: true });
+          }, { onlyOnce: true });
 
-        container.innerHTML = `
-          <div class="item-card">
-            <strong>New Item</strong>
-            <input id="add-name" placeholder="Name" />
-            <input id="add-desc" placeholder="Description" />
-            <input id="add-price" placeholder="Price (Toman)" type="number" />
-            <input id="add-img" placeholder="Image URL" />
-            <input id="add-position" placeholder="Order" type="number" />
-            <select id="add-category">
-              <option value="">Select Category</option>
-              <option value="hot_coffee">Hot Coffee</option>
-              <option value="food">Food&Dessert</option>
-              <option value="hot_drink">Hot Drink</option>
-              <option value="cold_drink">Cold Drink</option>
-              <option value="iced_coffee">Iced Coffee</option>
-            </select>
-            <select id="add-status">
-              <option value="">Select Status</option>
-              <option value="Available">Available</option>
-              <option value="Not Available">Not Available</option>
-              <option value="Coming Soon">Coming Soon</option>
-            </select>
-            <div class="item-actions">
-              <button onclick="saveItem()">Save</button>
-              <button onclick="resetForm()">New</button>
+          container.innerHTML = `
+            <div class="item-card">
+              <strong>New Item</strong>
+              <input id="add-name" placeholder="Name" />
+              <input id="add-desc" placeholder="Description" />
+              <input id="add-price" placeholder="Price (Toman)" type="number" />
+              <input id="add-img" placeholder="Image URL" />
+              <input id="add-position" placeholder="Order" type="number" />
+              <select id="add-category">
+                <option value="">Select Category</option>
+                <option value="hot_coffee">Hot Coffee</option>
+                <option value="food">Food&Dessert</option>
+                <option value="hot_drink">Hot Drink</option>
+                <option value="cold_drink">Cold Drink</option>
+                <option value="iced_coffee">Iced Coffee</option>
+              </select>
+              <select id="add-status">
+                <option value="">Select Status</option>
+                <option value="Available">Available</option>
+                <option value="Not Available">Not Available</option>
+                <option value="Coming Soon">Coming Soon</option>
+              </select>
+              <div class="item-actions">
+                <button onclick="saveItem()">Save</button>
+                <button onclick="resetForm()">New</button>
+              </div>
             </div>
-          </div>
-        `;
-        Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
-          if (currentFilter === 'all' || item.category === currentFilter) {
-            const categoryLabel = {
-              'hot_coffee': 'Hot Coffee',
-              'food': 'Food&Dessert',
-              'hot_drink': 'Hot Drink',
-              'cold_drink': 'Cold Drink',
-              'iced_coffee': 'Iced Coffee'
-            }[item.category] || 'Unknown';
-            const div = document.createElement('div');
-            div.className = 'item-card';
-            let ingredientsHtml = '';
-            const ingredients = item.ingredients || {};
-            Object.entries(ingredients).forEach(([ingName, ingData], index) => {
-              ingredientsHtml += `
-                <div class="ingredient-row">
-                  <input id="edit-ing-name-${key}-${index}" placeholder="Ingredient Name" value="${ingName}" />
-                  <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" value="${ingData.quantity || 0}" />
-                  <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" value="${ingData.unit || ''}" />
-                  <input id="edit-ing-stock-${key}-${index}" placeholder="Stock" type="number" step="0.01" value="${ingData.stock || 0}" />
-                  <input id="edit-ing-threshold-${key}-${index}" placeholder="Threshold" type="number" step="0.01" value="${ingData.threshold || 0}" />
-                  <button onclick="removeIngredientRow(this)">حذف</button>
+          `;
+          Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
+            if (currentFilter === 'all' || item.category === currentFilter) {
+              const categoryLabel = {
+                'hot_coffee': 'Hot Coffee',
+                'food': 'Food&Dessert',
+                'hot_drink': 'Hot Drink',
+                'cold_drink': 'Cold Drink',
+                'iced_coffee': 'Iced Coffee'
+              }[item.category] || 'Unknown';
+              const div = document.createElement('div');
+              div.className = 'item-card';
+              let ingredientsHtml = '';
+              const ingredients = item.ingredients || {};
+              Object.entries(ingredients).forEach(([ingName, ingData], index) => {
+                ingredientsHtml += `
+                  <div class="ingredient-row">
+                    <select id="edit-ing-name-${key}-${index}" onchange="updateUnit('${key}', ${index})">
+                      <option value="">Select Ingredient</option>
+                      ${Object.values(stockIngredients).map(ing => `<option value="${ing.name}" ${ingName === ing.name ? 'selected' : ''}>${ing.name}</option>`).join('')}
+                    </select>
+                    <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" value="${ingData.quantity || 0}" />
+                    <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" value="${ingData.unit || ''}" readonly />
+                    <button onclick="removeIngredientRow(this)">حذف</button>
+                  </div>
+                `;
+              });
+              div.innerHTML = `
+                <img src="${item.img}" class="item-img" />
+                <strong>${item.name}</strong>
+                <div>${item.desc}</div>
+                <div>${item.price.toLocaleString('fa-IR')} Toman</div>
+                <div>Category: ${categoryLabel}</div>
+                <div>Status: ${item.status || 'Available'}</div>
+                <div class="item-actions">
+                  <button onclick="toggleEdit('${key}')">Edit</button>
+                  <button onclick="duplicateItem('${key}')">Duplicate</button>
+                  <button onclick="deleteItem('${key}')">Delete</button>
+                  <button onclick="moveItem('${key}', -1)">⬆️</button>
+                  <button onclick="moveItem('${key}', 1)">⬇️</button>
+                </div>
+                <div class="edit-form" id="edit-form-${key}">
+                  <input id="edit-name-${key}" placeholder="Name" value="${item.name || ''}" />
+                  <input id="edit-desc-${key}" placeholder="Description" value="${item.desc || ''}" />
+                  <input id="edit-price-${key}" placeholder="Price (Toman)" type="number" value="${item.price || ''}" />
+                  <input id="edit-img-${key}" placeholder="Image URL" value="${item.img || ''}" />
+                  <input id="edit-position-${key}" placeholder="Order" type="number" value="${item.position || ''}" />
+                  <select id="edit-category-${key}">
+                    <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>Hot Coffee</option>
+                    <option value="food" ${item.category === 'food' ? 'selected' : ''}>Food&Dessert</option>
+                    <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>Hot Drink</option>
+                    <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>Cold Drink</option>
+                    <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>Iced Coffee</option>
+                  </select>
+                  <select id="edit-status-${key}">
+                    <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
+                    <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>Not Available</option>
+                    <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>Coming Soon</option>
+                  </select>
+                  <strong>Ingredients</strong>
+                  <div id="ingredients-container-${key}">
+                    ${ingredientsHtml}
+                  </div>
+                  <button class="add-ingredient-btn" onclick="addIngredientRow('${key}')">افزودن ماده اولیه</button>
+                  <button onclick="saveEdit('${key}')">Save</button>
+                  <button onclick="cancelEdit('${key}')">Cancel</button>
                 </div>
               `;
-            });
-            div.innerHTML = `
-              <img src="${item.img}" class="item-img" />
-              <strong>${item.name}</strong>
-              <div>${item.desc}</div>
-              <div>${item.price.toLocaleString('fa-IR')} Toman</div>
-              <div>Category: ${categoryLabel}</div>
-              <div>Status: ${item.status || 'Available'}</div>
-              <div class="item-actions">
-                <button onclick="toggleEdit('${key}')">Edit</button>
-                <button onclick="duplicateItem('${key}')">Duplicate</button>
-                <button onclick="deleteItem('${key}')">Delete</button>
-                <button onclick="moveItem('${key}', -1)">⬆️</button>
-                <button onclick="moveItem('${key}', 1)">⬇️</button>
-              </div>
-              <div class="edit-form" id="edit-form-${key}">
-                <input id="edit-name-${key}" placeholder="Name" value="${item.name || ''}" />
-                <input id="edit-desc-${key}" placeholder="Description" value="${item.desc || ''}" />
-                <input id="edit-price-${key}" placeholder="Price (Toman)" type="number" value="${item.price || ''}" />
-                <input id="edit-img-${key}" placeholder="Image URL" value="${item.img || ''}" />
-                <input id="edit-position-${key}" placeholder="Order" type="number" value="${item.position || ''}" />
-                <select id="edit-category-${key}">
-                  <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>Hot Coffee</option>
-                  <option value="food" ${item.category === 'food' ? 'selected' : ''}>Food&Dessert</option>
-                  <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>Hot Drink</option>
-                  <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>Cold Drink</option>
-                  <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>Iced Coffee</option>
-                </select>
-                <select id="edit-status-${key}">
-                  <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
-                  <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>Not Available</option>
-                  <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>Coming Soon</option>
-                </select>
-                <strong>Ingredients</strong>
-                <div id="ingredients-container-${key}">
-                  ${ingredientsHtml}
-                </div>
-                <button class="add-ingredient-btn" onclick="addIngredientRow('${key}')">افزودن ماده اولیه</button>
-                <button onclick="saveEdit('${key}')">Save</button>
-                <button onclick="cancelEdit('${key}')">Cancel</button>
-              </div>
-            `;
-            container.appendChild(div);
-          }
+              container.appendChild(div);
+            }
+          });
         });
       });
     };
@@ -463,10 +588,8 @@
         const ingName = document.getElementById(`edit-ing-name-${key}-${index}`).value.trim();
         const ingQuantity = parseFloat(document.getElementById(`edit-ing-quantity-${key}-${index}`).value);
         const ingUnit = document.getElementById(`edit-ing-unit-${key}-${index}`).value.trim();
-        const ingStock = parseFloat(document.getElementById(`edit-ing-stock-${key}-${index}`).value);
-        const ingThreshold = parseFloat(document.getElementById(`edit-ing-threshold-${key}-${index}`).value);
-        if (ingName && ingQuantity && ingUnit && ingStock >= 0 && ingThreshold >= 0) {
-          ingredients[ingName] = { quantity: ingQuantity, unit: ingUnit, stock: ingStock, threshold: ingThreshold };
+        if (ingName && ingQuantity && ingUnit) {
+          ingredients[ingName] = { quantity: ingQuantity, unit: ingUnit };
         }
         index++;
       }
@@ -571,49 +694,55 @@
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
       modal.innerHTML = `<h3>وضعیت موجودی</h3><button onclick="closeModal()">بستن</button><button onclick="loadInventoryModal()">به‌روزرسانی</button>`;
-      onValue(menuRef, snap => {
-        const menuData = snap.val() || {};
-        onValue(ordersRef, snap => {
-          const ordersData = snap.val() || {};
-          const inventory = {};
-          // Calculate total consumption based on orders
-          Object.values(ordersData).forEach(order => {
-            Object.values(order.items).forEach(item => {
-              const menuItem = Object.values(menuData).find(m => m.name === item.name);
-              if (menuItem && menuItem.ingredients) {
-                Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
-                  if (!inventory[ingName]) {
-                    inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
-                  }
-                  inventory[ingName].consumed += item.qty * ingData.quantity;
-                });
-              }
+      
+      onValue(menuRef, menuSnap => {
+        const menuData = menuSnap.val() || {};
+        onValue(ordersRef, ordersSnap => {
+          const ordersData = ordersSnap.val() || {};
+          onValue(stockRef, stockSnap => {
+            const stockData = stockSnap.val() || {};
+            const inventory = {};
+
+            // Initialize inventory with stock data
+            Object.entries(stockData).forEach(([stockKey, stock]) => {
+              inventory[stock.name] = {
+                stock: stock.quantity || 0,
+                consumed: 0,
+                unit: stock.unit || '',
+                threshold: stock.threshold || 0
+              };
             });
-          });
-          // Update stock from menu items
-          Object.values(menuData).forEach(item => {
-            if (item.ingredients) {
-              Object.entries(item.ingredients).forEach(([ingName, ingData]) => {
-                if (inventory[ingName]) {
-                  inventory[ingName].stock += ingData.stock || 0;
-                } else {
-                  inventory[ingName] = { stock: ingData.stock || 0, consumed: 0, unit: ingData.unit, threshold: ingData.threshold || 0 };
+
+            // Calculate consumption based on orders
+            Object.values(ordersData).forEach(order => {
+              Object.values(order.items).forEach(item => {
+                const menuItem = Object.values(menuData).find(m => m.name === item.name);
+                if (menuItem && menuItem.ingredients) {
+                  Object.entries(menuItem.ingredients).forEach(([ingName, ingData]) => {
+                    if (!inventory[ingName]) {
+                      inventory[ingName] = { stock: 0, consumed: 0, unit: ingData.unit || '', threshold: 0 };
+                    }
+                    inventory[ingName].consumed += item.qty * (ingData.quantity || 0);
+                  });
                 }
               });
-            }
-          });
-          // Display inventory
-          Object.entries(inventory).forEach(([ingName, ingData]) => {
-            modal.innerHTML += `
-              <div class="inventory-card">
-                <strong>${ingName}</strong>
-                <div>موجودی: ${ingData.stock.toFixed(2)} ${ingData.unit}</div>
-                <div>مصرف‌شده: ${ingData.consumed.toFixed(2)} ${ingData.unit}</div>
-                <div>باقیمانده: ${(ingData.stock - ingData.consumed).toFixed(2)} ${ingData.unit}</div>
-                <div>آستانه: ${ingData.threshold.toFixed(2)} ${ingData.unit}</div>
-              </div>
-            `;
-          });
+            });
+
+            // Display inventory
+            Object.entries(inventory).forEach(([ingName, ingData]) => {
+              const remaining = ingData.stock - ingData.consumed;
+              modal.innerHTML += `
+                <div class="inventory-card">
+                  <strong>${ingName}</strong>
+                  <div>موجودی اولیه: ${ingData.stock.toFixed(2)} ${ingData.unit}</div>
+                  <div>مصرف‌شده: ${ingData.consumed.toFixed(2)} ${ingData.unit}</div>
+                  <div>باقیمانده: ${remaining.toFixed(2)} ${ingData.unit}</div>
+                  <div>آستانه هشدار: ${ingData.threshold.toFixed(2)} ${ingData.unit}</div>
+                  ${remaining < ingData.threshold ? `<div style="color: red;">هشدار: موجودی کمتر از آستانه است!</div>` : ''}
+                </div>
+              `;
+            });
+          }, { onlyOnce: true });
         }, { onlyOnce: true });
       }, { onlyOnce: true });
     };
@@ -656,8 +785,9 @@
     }
 
     window.onload = () => {
+      loadStockIngredients();
       loadMenu();
     };
   </script>
 </body>
-    </html>
+</html>
