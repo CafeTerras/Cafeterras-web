@@ -211,6 +211,54 @@
     </div>
   </div>
 
+  <div class="section">
+    <h3><span class="header-box">Cost Management</span></h3>
+    <div class="item-card stock-form-card">
+      <strong>Add Purchase Cost</strong>
+      <select id="purchase-stock-name" onchange="updatePurchaseUnit()">
+        <option value="">Select Ingredient</option>
+      </select>
+      <input id="purchase-quantity" placeholder="Quantity" type="number" step="0.01" />
+      <input id="purchase-unit" placeholder="Unit" readonly />
+      <input id="purchase-amount" placeholder="Cost Amount (Toman)" type="number" />
+      <input id="purchase-date" placeholder="Date (YYYY-MM-DD)" type="date" />
+      <div class="item-actions">
+        <button onclick="savePurchaseCost()">Save</button>
+        <button onclick="resetPurchaseForm()">Clear</button>
+      </div>
+    </div>
+    <div class="item-card stock-form-card">
+      <strong>Add Other Cost</strong>
+      <input id="other-category" placeholder="Category (e.g., Rent, Salary)" />
+      <input id="other-desc" placeholder="Description" />
+      <input id="other-amount" placeholder="Amount (Toman)" type="number" />
+      <input id="other-date" placeholder="Date (YYYY-MM-DD)" type="date" />
+      <div class="item-actions">
+        <button onclick="saveOtherCost()">Save</button>
+        <button onclick="resetOtherForm()">Clear</button>
+      </div>
+    </div>
+    <div class="item-card stock-form-card">
+      <strong>Edit Existing Cost</strong>
+      <select id="edit-cost-select" onchange="loadCostDetails()">
+        <option value="">Select Cost</option>
+      </select>
+      <input id="edit-cost-ingredient" placeholder="Ingredient (for purchase)" />
+      <input id="edit-cost-quantity" placeholder="Quantity (for purchase)" type="number" step="0.01" />
+      <input id="edit-cost-unit" placeholder="Unit (for purchase)" readonly />
+      <input id="edit-cost-category" placeholder="Category (for other costs)" />
+      <input id="edit-cost-desc" placeholder="Description (for other costs)" />
+      <input id="edit-cost-amount" placeholder="Amount (Toman)" type="number" />
+      <input id="edit-cost-date" placeholder="Date (YYYY-MM-DD)" type="date" />
+      <input id="edit-cost-type" type="hidden" />
+      <div class="item-actions">
+        <button onclick="saveEditedCost()">Save</button>
+        <button onclick="resetEditCostForm()">Clear</button>
+      </div>
+    </div>
+    <button onclick="loadCostReportModal()">Cost and Profit Report</button>
+  </div>
+
   <div id="modal" class="modal" style="display:none;"></div>
   <div id="reportModal" class="modal-report" style="display:none;"></div>
   <div id="overlay" class="overlay" style="display:none;" onclick="closeModal()"></div>
@@ -233,6 +281,7 @@
     const menuRef = ref(db, 'menuItems');
     const ordersRef = ref(db, 'orders');
     const stockRef = ref(db, 'stock');
+    const costsRef = ref(db, 'costs');
 
     let stockIngredients = {};
     let lowStockWarnings = [];
@@ -267,6 +316,8 @@
       push(stockRef, data).then(() => {
         loadStockIngredients();
         populateStockDropdown();
+        populatePurchaseDropdown();
+        populateCostDropdown();
       });
       resetStockForm();
     };
@@ -308,6 +359,8 @@
             .then(() => {
               loadStockIngredients();
               populateStockDropdown();
+              populatePurchaseDropdown();
+              populateCostDropdown();
               resetUpdateStockForm();
               alert("Stock updated successfully!");
             })
@@ -331,6 +384,136 @@
       Object.values(stockIngredients).forEach(ing => {
         select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
       });
+    };
+
+    window.populatePurchaseDropdown = () => {
+      const select = document.getElementById('purchase-stock-name');
+      select.innerHTML = '<option value="">Select Ingredient</option>';
+      Object.values(stockIngredients).forEach(ing => {
+        select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
+      });
+      updatePurchaseUnit();
+    };
+
+    window.populateCostDropdown = () => {
+      const select = document.getElementById('edit-cost-select');
+      select.innerHTML = '<option value="">Select Cost</option>';
+      onValue(costsRef, snap => {
+        const costsData = snap.val() || {};
+        Object.entries(costsData).forEach(([key, cost]) => {
+          let costLabel = '';
+          if (cost.type === 'purchase') {
+            costLabel = `خرید: ${cost.ingredient} (${cost.amount.toLocaleString('fa-IR')} تومان)`;
+          } else {
+            costLabel = `${cost.category}: ${cost.desc || ''} (${cost.amount.toLocaleString('fa-IR')} تومان)`;
+          }
+          select.innerHTML += `<option value="${key}">${costLabel}</option>`;
+        });
+      }, { onlyOnce: true });
+    };
+
+    window.updatePurchaseUnit = () => {
+      const select = document.getElementById('purchase-stock-name');
+      const unitInput = document.getElementById('purchase-unit');
+      const selectedName = select.value;
+      const ingredient = Object.values(stockIngredients).find(ing => ing.name === selectedName);
+      unitInput.value = ingredient ? ingredient.unit : '';
+    };
+
+    window.loadCostDetails = () => {
+      const select = document.getElementById('edit-cost-select');
+      const costKey = select.value;
+      if (!costKey) {
+        resetEditCostForm();
+        return;
+      }
+      onValue(ref(db, `costs/${costKey}`), snap => {
+        const cost = snap.val();
+        if (cost) {
+          document.getElementById('edit-cost-type').value = cost.type;
+          if (cost.type === 'purchase') {
+            document.getElementById('edit-cost-ingredient').value = cost.ingredient || '';
+            document.getElementById('edit-cost-quantity').value = cost.quantity || '';
+            document.getElementById('edit-cost-unit').value = cost.unit || '';
+            document.getElementById('edit-cost-category').value = '';
+            document.getElementById('edit-cost-desc').value = '';
+          } else {
+            document.getElementById('edit-cost-ingredient').value = '';
+            document.getElementById('edit-cost-quantity').value = '';
+            document.getElementById('edit-cost-unit').value = '';
+            document.getElementById('edit-cost-category').value = cost.category || '';
+            document.getElementById('edit-cost-desc').value = cost.desc || '';
+          }
+          document.getElementById('edit-cost-amount').value = cost.amount || '';
+          document.getElementById('edit-cost-date').value = cost.date || '';
+        } else {
+          resetEditCostForm();
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.saveEditedCost = () => {
+      const costKey = document.getElementById('edit-cost-select').value;
+      const type = document.getElementById('edit-cost-type').value;
+      if (!costKey) return alert("Please select a cost to edit.");
+      
+      if (type === 'purchase') {
+        const ingredient = document.getElementById('edit-cost-ingredient').value.trim();
+        const quantity = parseFloat(document.getElementById('edit-cost-quantity').value);
+        const unit = document.getElementById('edit-cost-unit').value.trim();
+        const amount = parseFloat(document.getElementById('edit-cost-amount').value);
+        const date = document.getElementById('edit-cost-date').value;
+        if (!ingredient || !quantity || !unit || !amount || !date) return alert("Ingredient, quantity, unit, amount, and date are required.");
+        const data = { type: 'purchase', ingredient, quantity, unit, amount, date };
+        update(ref(db, `costs/${costKey}`), data)
+          .then(() => {
+            alert("Cost updated successfully!");
+            resetEditCostForm();
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("Error updating cost:", error);
+            alert("Failed to update cost.");
+          });
+      } else {
+        const category = document.getElementById('edit-cost-category').value.trim();
+        const desc = document.getElementById('edit-cost-desc').value.trim();
+        const amount = parseFloat(document.getElementById('edit-cost-amount').value);
+        const date = document.getElementById('edit-cost-date').value;
+        if (!category || !amount || !date) return alert("Category, amount, and date are required.");
+        const data = { type: 'other', category, desc, amount, date };
+        update(ref(db, `costs/${costKey}`), data)
+          .then(() => {
+            alert("Cost updated successfully!");
+            resetEditCostForm();
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("Error updating cost:", error);
+            alert("Failed to update cost.");
+          });
+      }
+    };
+
+    window.resetEditCostForm = () => {
+      ['edit-cost-select', 'edit-cost-ingredient', 'edit-cost-quantity', 'edit-cost-unit', 'edit-cost-category', 'edit-cost-desc', 'edit-cost-amount', 'edit-cost-date', 'edit-cost-type'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.deleteCost = (costKey) => {
+      if (confirm('Are you sure you want to delete this cost?')) {
+        remove(ref(db, `costs/${costKey}`))
+          .then(() => {
+            alert("Cost deleted successfully!");
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("Error deleting cost:", error);
+            alert("Failed to delete cost.");
+          });
+      }
     };
 
     let currentFilter = 'all';
@@ -364,6 +547,8 @@
       onValue(stockRef, snap => {
         stockIngredients = snap.val() || {};
         populateStockDropdown();
+        populatePurchaseDropdown();
+        populateCostDropdown();
       });
     };
 
@@ -706,6 +891,101 @@
       }, { onlyOnce: true });
     };
 
+    window.savePurchaseCost = () => {
+      const name = document.getElementById('purchase-stock-name').value.trim();
+      const quantity = parseFloat(document.getElementById('purchase-quantity').value);
+      const unit = document.getElementById('purchase-unit').value.trim();
+      const amount = parseFloat(document.getElementById('purchase-amount').value);
+      const date = document.getElementById('purchase-date').value;
+      if (!name || !quantity || !unit || !amount || !date) return alert("Ingredient, quantity, unit, amount, and date are required.");
+      const data = { type: 'purchase', ingredient: name, quantity, unit, amount, date };
+      push(costsRef, data).then(() => {
+        populateCostDropdown();
+      });
+      resetPurchaseForm();
+    };
+
+    window.resetPurchaseForm = () => {
+      ['purchase-stock-name', 'purchase-quantity', 'purchase-unit', 'purchase-amount', 'purchase-date'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.saveOtherCost = () => {
+      const category = document.getElementById('other-category').value.trim();
+      const desc = document.getElementById('other-desc').value.trim();
+      const amount = parseFloat(document.getElementById('other-amount').value);
+      const date = document.getElementById('other-date').value;
+      if (!category || !amount || !date) return alert("Category, amount, and date are required.");
+      const data = { type: 'other', category, desc, amount, date };
+      push(costsRef, data).then(() => {
+        populateCostDropdown();
+      });
+      resetOtherForm();
+    };
+
+    window.resetOtherForm = () => {
+      ['other-category', 'other-desc', 'other-amount', 'other-date'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.loadCostReportModal = () => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('reportModal');
+      modal.style.display = 'block';
+      modal.innerHTML = `<h3>گزارش هزینه‌ها و سود</h3><button onclick="closeModal()">بستن</button><button onclick="loadCostReportModal()">به‌روزرسانی</button>`;
+
+      onValue(ordersRef, ordersSnap => {
+        const ordersData = ordersSnap.val() || {};
+        let totalSales = 0;
+        Object.values(ordersData).forEach(order => {
+          Object.values(order.items || {}).forEach(item => {
+            totalSales += item.qty * item.price;
+          });
+        });
+
+        onValue(costsRef, costsSnap => {
+          const costsData = costsSnap.val() || {};
+          let totalCosts = 0;
+          Object.values(costsData).forEach(cost => {
+            totalCosts += cost.amount;
+          });
+
+          const netProfit = totalSales - totalCosts;
+
+          modal.innerHTML += `
+            <div class="inventory-card">
+              <strong>مجموع فروش:</strong> ${totalSales.toLocaleString('fa-IR')} تومان
+            </div>
+            <div class="inventory-card">
+              <strong>مجموع هزینه‌ها:</strong> ${totalCosts.toLocaleString('fa-IR')} تومان
+            </div>
+            <div class="inventory-card">
+              <strong>سود خالص:</strong> ${netProfit.toLocaleString('fa-IR')} تومان
+            </div>
+          `;
+
+          // List all costs
+          modal.innerHTML += `<h4>لیست هزینه‌ها</h4>`;
+          Object.entries(costsData).forEach(([key, cost]) => {
+            let costDetails = '';
+            if (cost.type === 'purchase') {
+              costDetails = `خرید ماده اولیه: ${cost.ingredient} (${cost.quantity} ${cost.unit})`;
+            } else if (cost.type === 'other') {
+              costDetails = `${cost.category} - ${cost.desc || ''}`;
+            }
+            modal.innerHTML += `
+              <div class="inventory-card">
+                <strong>${costDetails}</strong>
+                <div>مبلغ: ${cost.amount.toLocaleString('fa-IR')} تومان</div>
+                <div>تاریخ: ${cost.date}</div>
+                <div class="item-actions">
+                  <button onclick="deleteCost('${key}')">حذف</button>
+                </div>
+              </div>
+            `;
+          });
+        }, { onlyOnce: true });
+      }, { onlyOnce: true });
+    };
+
     window.closeModal = () => {
       document.getElementById('modal').style.display = 'none';
       document.getElementById('reportModal').style.display = 'none';
@@ -715,6 +995,7 @@
     window.onload = () => {
       loadStockIngredients();
       loadMenu();
+      populateCostDropdown();
     };
   </script>
 </body>
