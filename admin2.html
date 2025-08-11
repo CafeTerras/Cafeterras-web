@@ -6,8 +6,8 @@
   <title>Admin Café Terras</title>
   <style>
     :root {
-      --primary-bg: #FFC107; /* Van Gogh Yellow */
-      --primary-color: #1A237E; /* Van Gogh Dark Blue */
+      --primary-bg: #FFC107;
+      --primary-color: #1A237E;
     }
     .header-box {
       background: white;
@@ -23,18 +23,33 @@
       font-family: sans-serif;
       background: var(--primary-bg);
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--primary-bg);
+      padding: 10px;
     }
     h2 { text-align: center; margin-bottom: 20px; }
-    .section { margin-bottom: 40px; }
+    .section { margin-bottom: 40px; width: 100%; display: none; }
+    .section.active { display: block; }
     .item-card, .order-card, .inventory-card {
       background: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
       padding: 10.8px;
       margin-bottom: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      width: 90%;
+      width: 80%;
       margin-left: auto;
       margin-right: auto;
+    }
+    .stock-form-card {
+      width: fit-content;
+      max-width: 300px;
     }
     input, button, select {
       padding: 6px;
@@ -84,14 +99,8 @@
     }
     #menuItems {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 12px;
-    }
-    .item-card {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
     }
     .edit-form {
       display: none;
@@ -101,6 +110,23 @@
     .edit-form input, .edit-form select {
       width: 100%;
       box-sizing: border-box;
+    }
+    .tab-menu {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .tab-button {
+      padding: 10px 20px;
+      margin: 0 5px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary-color);
+      color: white;
+      cursor: pointer;
+    }
+    .tab-button.active {
+      background: #FFD54F;
+      color: var(--primary-color);
     }
     .filter-buttons {
       text-align: center;
@@ -154,80 +180,165 @@
     }
   </script>
 
-  <div id="notification-bar" class="notification-bar"></div>
-  <h2><span class="header-box">Café Terras Menu Management</span></h2>
-  <div style="text-align:center; margin-bottom: 20px;">
-    <a href="https://console.firebase.google.com/project/cafeterrasapp" target="_blank">
-      <button>Firebase Console</button>
-    </a>
-    <a href="https://github.com/cafeterras" target="_blank">
-      <button>GitHub</button>
-    </a>
-    <a href="https://arash-sepehrara.imgbb.com" target="_blank">
-      <button>imgbb</button>
-    </a>
+  <header class="sticky-header">
+    <div id="notification-bar" class="notification-bar"></div>
+    <h2><span class="header-box">Café Terras Menu Management</span></h2>
+    <div style="text-align:center; margin-bottom: 20px;">
+      <a href="https://console.firebase.google.com/project/cafeterrasapp" target="_blank"><button>Firebase Console</button></a>
+      <a href="https://github.com/cafeterras" target="_blank"><button>GitHub</button></a>
+      <a href="https://arash-sepehrara.imgbb.com" target="_blank"><button>imgbb</button></a>
+    </div>
+  </header>
+
+  <div class="tab-menu">
+    <button class="tab-button active" onclick="showTab('menu')">مدیریت منو</button>
+    <button class="tab-button" onclick="showTab('inventory')">مدیریت موجودی</button>
+    <button class="tab-button" onclick="showTab('costs')">مدیریت هزینه‌ها</button>
   </div>
 
-  <div class="section">
+  <div class="section active" id="menu">
     <div class="filter-buttons">
-      <button onclick="filterItems('all')">All</button>
-      <button onclick="filterItems('hot_coffee')">Hot Coffee</button>
-      <button onclick="filterItems('food')">Food&Dessert</button>
-      <button onclick="filterItems('hot_drink')">Hot Drink</button>
-      <button onclick="filterItems('cold_drink')">Cold Drink</button>
-      <button onclick="filterItems('iced_coffee')">Iced Coffee</button>
+      <button onclick="filterItems('all')">همه</button>
+      <button onclick="filterItems('hot_coffee')">قهوه گرم</button>
+      <button onclick="filterItems('food')">غذا و دسر</button>
+      <button onclick="filterItems('hot_drink')">نوشیدنی گرم</button>
+      <button onclick="filterItems('cold_drink')">نوشیدنی سرد</button>
+      <button onclick="filterItems('iced_coffee')">قهوه سرد</button>
     </div>
+    <button onclick="openModal('add-item-modal')">افزودن آیتم جدید</button>
     <div id="menuItems"></div>
   </div>
 
-  <div class="section">
-    <h3><span class="header-box">Order History</span></h3>
-    <button onclick="loadReportModal('today')">Today</button>
-    <button onclick="loadReportModal('yesterday')">Yesterday</button>
-    <button onclick="loadReportModal('month')">Monthly</button>
-    <button onclick="loadReportModal('all')">All</button>
+  <div class="section" id="inventory">
+    <h3><span class="header-box">مدیریت موجودی</span></h3>
+    <button onclick="loadInventoryModal()">مشاهده موجودی</button>
+    <button onclick="generateShoppingList()">لیست خرید</button>
+    <button onclick="openModal('add-stock-modal')">افزودن موجودی جدید</button>
+    <button onclick="openModal('update-stock-modal')">به‌روزرسانی موجودی</button>
   </div>
 
-  <div class="section">
-    <h3><span class="header-box">Sales Statistics</span></h3>
-    <button onclick="loadStatsModal('today')">Today</button>
-    <button onclick="loadStatsModal('yesterday')">Yesterday</button>
-    <button onclick="loadStatsModal('month')">Monthly</button>
-    <button onclick="loadStatsModal('all')">All</button>
+  <div class="section" id="costs">
+    <h3><span class="header-box">مدیریت هزینه‌ها</span></h3>
+    <button onclick="openModal('add-purchase-cost-modal')">افزودن هزینه خرید</button>
+    <button onclick="openModal('add-other-cost-modal')">افزودن هزینه دیگر</button>
+    <button onclick="openModal('edit-cost-modal')">ویرایش هزینه</button>
+    <button onclick="loadCostReportModal()">گزارش هزینه‌ها و سود</button>
   </div>
 
-  <div class="section">
-    <h3><span class="header-box">Inventory Management</span></h3>
-    <button onclick="loadInventoryModal()">Inventory</button>
+  <div id="add-item-modal" class="modal" style="display:none;">
     <div class="item-card">
-      <strong>Add New Stock</strong>
-      <input id="stock-name" placeholder="Ingredient Name" />
-      <input id="stock-quantity" placeholder="Quantity" type="number" step="0.01" />
-      <input id="stock-unit" placeholder="Unit" />
-      <input id="stock-threshold" placeholder="Threshold" type="number" step="0.01" />
+      <strong>افزودن آیتم جدید</strong>
+      <input id="add-name" placeholder="نام" />
+      <input id="add-desc" placeholder="توضیحات" />
+      <input id="add-price" placeholder="قیمت (تومان)" type="number" />
+      <input id="add-img" placeholder="آدرس تصویر" />
+      <input id="add-position" placeholder="ترتیب" type="number" />
+      <select id="add-category">
+        <option value="">انتخاب دسته‌بندی</option>
+        <option value="hot_coffee">قهوه گرم</option>
+        <option value="food">غذا و دسر</option>
+        <option value="hot_drink">نوشیدنی گرم</option>
+        <option value="cold_drink">نوشیدنی سرد</option>
+        <option value="iced_coffee">قهوه سرد</option>
+      </select>
+      <select id="add-status">
+        <option value="">انتخاب وضعیت</option>
+        <option value="Available">موجود</option>
+        <option value="Not Available">ناموجود</option>
+        <option value="Coming Soon">به‌زودی</option>
+      </select>
       <div class="item-actions">
-        <button onclick="saveStock()">Save</button>
-        <button onclick="resetStockForm()">Clear</button>
+        <button onclick="saveItem()">ذخیره</button>
+        <button onclick="closeModal('add-item-modal')">لغو</button>
       </div>
     </div>
-    <div class="item-card">
-      <strong>Update Existing Stock</strong>
-      <select id="update-stock-name" onchange="loadStockDetails()">
-        <option value="">Select Ingredient</option>
-      </select>
-      <input id="update-stock-quantity" placeholder="Add Quantity" type="number" step="0.01" />
-      <input id="update-stock-unit" placeholder="Unit" readonly />
-      <input id="update-stock-threshold" placeholder="Threshold" type="number" step="0.01" />
+  </div>
+
+  <div id="add-stock-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>افزودن موجودی جدید</strong>
+      <input id="stock-name" placeholder="نام ماده اولیه" />
+      <input id="stock-quantity" placeholder="مقدار" type="number" step="0.01" />
+      <input id="stock-unit" placeholder="واحد" />
+      <input id="stock-threshold" placeholder="آستانه" type="number" step="0.01" />
       <div class="item-actions">
-        <button onclick="updateStock()">Update</button>
-        <button onclick="resetUpdateStockForm()">Clear</button>
+        <button onclick="saveStock()">ذخیره</button>
+        <button onclick="closeModal('add-stock-modal')">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="update-stock-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>به‌روزرسانی موجودی</strong>
+      <select id="update-stock-name" onchange="loadStockDetails()">
+        <option value="">انتخاب ماده اولیه</option>
+      </select>
+      <input id="update-stock-quantity" placeholder="مقدار اضافه" type="number" step="0.01" />
+      <input id="update-stock-unit" placeholder="واحد" readonly />
+      <input id="update-stock-threshold" placeholder="آستانه" type="number" step="0.01" />
+      <div class="item-actions">
+        <button onclick="updateStock()">به‌روزرسانی</button>
+        <button onclick="closeModal('update-stock-modal')">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-purchase-cost-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>افزودن هزینه خرید</strong>
+      <select id="purchase-stock-name" onchange="updatePurchaseUnit()">
+        <option value="">انتخاب ماده اولیه</option>
+      </select>
+      <input id="purchase-quantity" placeholder="مقدار" type="number" step="0.01" />
+      <input id="purchase-unit" placeholder="واحد" readonly />
+      <input id="purchase-amount" placeholder="مبلغ هزینه (تومان)" type="number" />
+      <input id="purchase-date" placeholder="تاریخ (YYYY-MM-DD)" type="date" />
+      <div class="item-actions">
+        <button onclick="savePurchaseCost()">ذخیره</button>
+        <button onclick="closeModal('add-purchase-cost-modal')">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-other-cost-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>افزودن هزینه دیگر</strong>
+      <input id="other-category" placeholder="دسته‌بندی (مثل اجاره، حقوق)" />
+      <input id="other-desc" placeholder="توضیحات" />
+      <input id="other-amount" placeholder="مبلغ (تومان)" type="number" />
+      <input id="other-date" placeholder="تاریخ (YYYY-MM-DD)" type="date" />
+      <div class="item-actions">
+        <button onclick="saveOtherCost()">ذخیره</button>
+        <button onclick="closeModal('add-other-cost-modal')">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="edit-cost-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>ویرایش هزینه</strong>
+      <select id="edit-cost-select" onchange="loadCostDetails()">
+        <option value="">انتخاب هزینه</option>
+      </select>
+      <input id="edit-cost-ingredient" placeholder="ماده اولیه (برای خرید)" />
+      <input id="edit-cost-quantity" placeholder="مقدار (برای خرید)" type="number" step="0.01" />
+      <input id="edit-cost-unit" placeholder="واحد (برای خرید)" readonly />
+      <input id="edit-cost-category" placeholder="دسته‌بندی (برای هزینه‌های دیگر)" />
+      <input id="edit-cost-desc" placeholder="توضیحات (برای هزینه‌های دیگر)" />
+      <input id="edit-cost-amount" placeholder="مبلغ (تومان)" type="number" />
+      <input id="edit-cost-date" placeholder="تاریخ (YYYY-MM-DD)" type="date" />
+      <input id="edit-cost-type" type="hidden" />
+      <div class="item-actions">
+        <button onclick="saveEditedCost()">ذخیره</button>
+        <button onclick="closeModal('edit-cost-modal')">لغو</button>
       </div>
     </div>
   </div>
 
   <div id="modal" class="modal" style="display:none;"></div>
   <div id="reportModal" class="modal-report" style="display:none;"></div>
-  <div id="overlay" class="overlay" style="display:none;" onclick="closeModal()"></div>
+  <div id="overlay" class="overlay" style="display:none;" onclick="closeAllModals()"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
@@ -247,8 +358,32 @@
     const menuRef = ref(db, 'menuItems');
     const ordersRef = ref(db, 'orders');
     const stockRef = ref(db, 'stock');
+    const costsRef = ref(db, 'costs');
 
     let stockIngredients = {};
+    let lowStockWarnings = [];
+
+    window.showTab = (tabId) => {
+      document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`).classList.add('active');
+    };
+
+    window.openModal = (modalId) => {
+      document.getElementById(modalId).style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    };
+
+    window.closeModal = (modalId) => {
+      document.getElementById(modalId).style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    };
+
+    window.closeAllModals = () => {
+      document.querySelectorAll('.modal, .modal-report').forEach(modal => modal.style.display = 'none');
+      document.getElementById('overlay').style.display = 'none';
+    };
 
     window.saveItem = () => {
       const name = document.getElementById('add-name').value.trim();
@@ -258,10 +393,12 @@
       const position = parseInt(document.getElementById('add-position').value);
       const category = document.getElementById('add-category').value;
       const status = document.getElementById('add-status').value;
-      if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
+      if (!name || !price || !img || !category || !status) return alert("نام، قیمت، تصویر، دسته‌بندی و وضعیت الزامی است.");
       const data = { name, desc, price, img, position, category, status, ingredients: {} };
-      push(menuRef, data);
-      resetForm();
+      push(menuRef, data).then(() => {
+        closeModal('add-item-modal');
+        resetForm();
+      });
     };
 
     window.resetForm = () => {
@@ -273,13 +410,18 @@
       const quantity = parseFloat(document.getElementById('stock-quantity').value);
       const unit = document.getElementById('stock-unit').value.trim();
       const threshold = parseFloat(document.getElementById('stock-threshold').value);
-      if (!name || !quantity || !unit || !threshold) return alert("Name, quantity, unit, and threshold are required.");
+      if (!name || !quantity || !unit || !threshold) return alert("نام، مقدار، واحد و آستانه الزامی است.");
+      const invalidChars = /[.#$/[\]]/;
+      if (invalidChars.test(name)) return alert("نام ماده اولیه نمی‌تواند شامل کاراکترهای . # $ / [ ] باشد.");
       const data = { name, quantity, unit, threshold };
       push(stockRef, data).then(() => {
         loadStockIngredients();
         populateStockDropdown();
+        populatePurchaseDropdown();
+        populateCostDropdown();
+        closeModal('add-stock-modal');
+        resetStockForm();
       });
-      resetStockForm();
     };
 
     window.resetStockForm = () => {
@@ -307,7 +449,7 @@
       const addQuantity = parseFloat(document.getElementById('update-stock-quantity').value) || 0;
       const unit = document.getElementById('update-stock-unit').value.trim();
       const threshold = parseFloat(document.getElementById('update-stock-threshold').value);
-      if (!name || !unit || !threshold) return alert("Name, unit, and threshold are required.");
+      if (!name || !unit || !threshold) return alert("نام، واحد و آستانه الزامی است.");
       
       onValue(stockRef, snap => {
         const stockData = snap.val() || {};
@@ -319,15 +461,18 @@
             .then(() => {
               loadStockIngredients();
               populateStockDropdown();
+              populatePurchaseDropdown();
+              populateCostDropdown();
+              closeModal('update-stock-modal');
               resetUpdateStockForm();
-              alert("Stock updated successfully!");
+              alert("موجودی با موفقیت به‌روزرسانی شد!");
             })
             .catch(error => {
-              console.error("Error updating stock:", error);
-              alert("Failed to update stock.");
+              console.error("خطا در به‌روزرسانی موجودی:", error);
+              alert("خطا در به‌روزرسانی موجودی.");
             });
         } else {
-          alert("Ingredient not found.");
+          alert("ماده اولیه یافت نشد.");
         }
       }, { onlyOnce: true });
     };
@@ -338,10 +483,142 @@
 
     window.populateStockDropdown = () => {
       const select = document.getElementById('update-stock-name');
-      select.innerHTML = '<option value="">Select Ingredient</option>';
+      select.innerHTML = '<option value="">انتخاب ماده اولیه</option>';
       Object.values(stockIngredients).forEach(ing => {
         select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
       });
+    };
+
+    window.populatePurchaseDropdown = () => {
+      const select = document.getElementById('purchase-stock-name');
+      select.innerHTML = '<option value="">انتخاب ماده اولیه</option>';
+      Object.values(stockIngredients).forEach(ing => {
+        select.innerHTML += `<option value="${ing.name}">${ing.name}</option>`;
+      });
+      updatePurchaseUnit();
+    };
+
+    window.populateCostDropdown = () => {
+      const select = document.getElementById('edit-cost-select');
+      select.innerHTML = '<option value="">انتخاب هزینه</option>';
+      onValue(costsRef, snap => {
+        const costsData = snap.val() || {};
+        Object.entries(costsData).forEach(([key, cost]) => {
+          let costLabel = '';
+          if (cost.type === 'purchase') {
+            costLabel = `خرید: ${cost.ingredient} (${cost.amount.toLocaleString('fa-IR')} تومان)`;
+          } else {
+            costLabel = `${cost.category}: ${cost.desc || ''} (${cost.amount.toLocaleString('fa-IR')} تومان)`;
+          }
+          select.innerHTML += `<option value="${key}">${costLabel}</option>`;
+        });
+      }, { onlyOnce: true });
+    };
+
+    window.updatePurchaseUnit = () => {
+      const select = document.getElementById('purchase-stock-name');
+      const unitInput = document.getElementById('purchase-unit');
+      const selectedName = select.value;
+      const ingredient = Object.values(stockIngredients).find(ing => ing.name === selectedName);
+      unitInput.value = ingredient ? ingredient.unit : '';
+    };
+
+    window.loadCostDetails = () => {
+      const select = document.getElementById('edit-cost-select');
+      const costKey = select.value;
+      if (!costKey) {
+        resetEditCostForm();
+        return;
+      }
+      onValue(ref(db, `costs/${costKey}`), snap => {
+        const cost = snap.val();
+        if (cost) {
+          document.getElementById('edit-cost-type').value = cost.type;
+          if (cost.type === 'purchase') {
+            document.getElementById('edit-cost-ingredient').value = cost.ingredient || '';
+            document.getElementById('edit-cost-quantity').value = cost.quantity || '';
+            document.getElementById('edit-cost-unit').value = cost.unit || '';
+            document.getElementById('edit-cost-category').value = '';
+            document.getElementById('edit-cost-desc').value = '';
+          } else {
+            document.getElementById('edit-cost-ingredient').value = '';
+            document.getElementById('edit-cost-quantity').value = '';
+            document.getElementById('edit-cost-unit').value = '';
+            document.getElementById('edit-cost-category').value = cost.category || '';
+            document.getElementById('edit-cost-desc').value = cost.desc || '';
+          }
+          document.getElementById('edit-cost-amount').value = cost.amount || '';
+          document.getElementById('edit-cost-date').value = cost.date || '';
+        } else {
+          resetEditCostForm();
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.saveEditedCost = () => {
+      const costKey = document.getElementById('edit-cost-select').value;
+      const type = document.getElementById('edit-cost-type').value;
+      if (!costKey) return alert("لطفاً یک هزینه برای ویرایش انتخاب کنید.");
+      
+      if (type === 'purchase') {
+        const ingredient = document.getElementById('edit-cost-ingredient').value.trim();
+        const quantity = parseFloat(document.getElementById('edit-cost-quantity').value);
+        const unit = document.getElementById('edit-cost-unit').value.trim();
+        const amount = parseFloat(document.getElementById('edit-cost-amount').value);
+        const date = document.getElementById('edit-cost-date').value;
+        if (!ingredient || !quantity || !unit || !amount || !date) return alert("ماده اولیه، مقدار، واحد، مبلغ و تاریخ الزامی است.");
+        const data = { type: 'purchase', ingredient, quantity, unit, amount, date };
+        update(ref(db, `costs/${costKey}`), data)
+          .then(() => {
+            alert("هزینه با موفقیت به‌روزرسانی شد!");
+            closeModal('edit-cost-modal');
+            resetEditCostForm();
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("خطا در به‌روزرسانی هزینه:", error);
+            alert("خطا در به‌روزرسانی هزینه.");
+          });
+      } else {
+        const category = document.getElementById('edit-cost-category').value.trim();
+        const desc = document.getElementById('edit-cost-desc').value.trim();
+        const amount = parseFloat(document.getElementById('edit-cost-amount').value);
+        const date = document.getElementById('edit-cost-date').value;
+        if (!category || !amount || !date) return alert("دسته‌بندی، مبلغ و تاریخ الزامی است.");
+        const data = { type: 'other', category, desc, amount, date };
+        update(ref(db, `costs/${costKey}`), data)
+          .then(() => {
+            alert("هزینه با موفقیت به‌روزرسانی شد!");
+            closeModal('edit-cost-modal');
+            resetEditCostForm();
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("خطا در به‌روزرسانی هزینه:", error);
+            alert("خطا در به‌روزرسانی هزینه.");
+          });
+      }
+    };
+
+    window.resetEditCostForm = () => {
+      ['edit-cost-select', 'edit-cost-ingredient', 'edit-cost-quantity', 'edit-cost-unit', 'edit-cost-category', 'edit-cost-desc', 'edit-cost-amount', 'edit-cost-date', 'edit-cost-type'].forEach(id => document.getElementById(id).value = '');
+    };
+
+    window.deleteCost = (costKey) => {
+      if (confirm('آیا مطمئن هستید که می‌خواهید این هزینه را حذف کنید؟')) {
+        remove(ref(db, `costs/${costKey}`))
+          .then(() => {
+            alert("هزینه با موفقیت حذف شد!");
+            populateCostDropdown();
+            loadCostReportModal();
+          })
+          .catch(error => {
+            console.error("خطا در حذف هزینه:", error);
+            alert("خطا در حذف هزینه.");
+          });
+      }
     };
 
     let currentFilter = 'all';
@@ -358,15 +635,15 @@
         if (itemKey) {
           update(ref(db, `menuItems/${itemKey}`), { status: newStatus })
             .then(() => {
-              console.log(`Status of ${itemName} updated to ${newStatus}`);
+              console.log(`وضعیت ${itemName} به ${newStatus} به‌روزرسانی شد`);
               loadMenu();
             })
             .catch(error => {
-              console.error("Error updating status:", error);
-              alert("Failed to update status.");
+              console.error("خطا در به‌روزرسانی وضعیت:", error);
+              alert("خطا در به‌روزرسانی وضعیت.");
             });
         } else {
-          alert(`Item ${itemName} not found.`);
+          alert(`آیتم ${itemName} یافت نشد.`);
         }
       }, { onlyOnce: true });
     };
@@ -375,6 +652,8 @@
       onValue(stockRef, snap => {
         stockIngredients = snap.val() || {};
         populateStockDropdown();
+        populatePurchaseDropdown();
+        populateCostDropdown();
       });
     };
 
@@ -385,11 +664,11 @@
       newRow.className = 'ingredient-row';
       newRow.innerHTML = `
         <select id="edit-ing-name-${key}-${index}" onchange="updateUnit('${key}', ${index})">
-          <option value="">Select Ingredient</option>
+          <option value="">انتخاب ماده اولیه</option>
           ${Object.values(stockIngredients).map(ing => `<option value="${ing.name}">${ing.name}</option>`).join('')}
         </select>
-        <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" />
-        <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" readonly />
+        <input id="edit-ing-quantity-${key}-${index}" placeholder="مقدار" type="number" step="0.01" />
+        <input id="edit-ing-unit-${key}-${index}" placeholder="واحد" readonly />
         <button onclick="removeIngredientRow(this)">حذف</button>
       `;
       ingredientsContainer.appendChild(newRow);
@@ -411,15 +690,13 @@
         const data = snap.val() || {};
         const container = document.getElementById('menuItems');
         const notificationBar = document.getElementById('notification-bar');
-        let lowStockWarnings = [];
+        lowStockWarnings = [];
 
-        // Calculate consumption and check for low stock
         onValue(ordersRef, snap => {
           const ordersData = snap.val() || {};
           onValue(stockRef, stockSnap => {
             const stockData = stockSnap.val() || {};
             const inventory = {};
-            // Calculate total consumption based on orders
             Object.values(ordersData).forEach(order => {
               Object.values(order.items).forEach(item => {
                 const menuItem = Object.values(data).find(m => m.name === item.name);
@@ -433,7 +710,6 @@
                 }
               });
             });
-            // Update stock from stock data
             Object.values(stockData).forEach(stock => {
               if (inventory[stock.name]) {
                 inventory[stock.name].stock = stock.quantity;
@@ -447,13 +723,11 @@
                   threshold: stock.threshold || 0 
                 };
               }
-              // Check for low stock
               const remaining = inventory[stock.name].stock - inventory[stock.name].consumed;
               if (remaining < inventory[stock.name].threshold) {
                 lowStockWarnings.push(`${stock.name}: ${remaining.toFixed(2)} ${stock.unit} (کمتر از آستانه ${stock.threshold} ${stock.unit})`);
               }
             });
-            // Display notifications
             if (lowStockWarnings.length > 0) {
               notificationBar.style.display = 'block';
               notificationBar.innerHTML = `<strong>هشدار موجودی کم:</strong> ${lowStockWarnings.join(', ')}`;
@@ -462,43 +736,16 @@
             }
           }, { onlyOnce: true });
 
-          container.innerHTML = `
-            <div class="item-card">
-              <strong>New Item</strong>
-              <input id="add-name" placeholder="Name" />
-              <input id="add-desc" placeholder="Description" />
-              <input id="add-price" placeholder="Price (Toman)" type="number" />
-              <input id="add-img" placeholder="Image URL" />
-              <input id="add-position" placeholder="Order" type="number" />
-              <select id="add-category">
-                <option value="">Select Category</option>
-                <option value="hot_coffee">Hot Coffee</option>
-                <option value="food">Food&Dessert</option>
-                <option value="hot_drink">Hot Drink</option>
-                <option value="cold_drink">Cold Drink</option>
-                <option value="iced_coffee">Iced Coffee</option>
-              </select>
-              <select id="add-status">
-                <option value="">Select Status</option>
-                <option value="Available">Available</option>
-                <option value="Not Available">Not Available</option>
-                <option value="Coming Soon">Coming Soon</option>
-              </select>
-              <div class="item-actions">
-                <button onclick="saveItem()">Save</button>
-                <button onclick="resetForm()">New</button>
-              </div>
-            </div>
-          `;
+          container.innerHTML = '';
           Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
             if (currentFilter === 'all' || item.category === currentFilter) {
               const categoryLabel = {
-                'hot_coffee': 'Hot Coffee',
-                'food': 'Food&Dessert',
-                'hot_drink': 'Hot Drink',
-                'cold_drink': 'Cold Drink',
-                'iced_coffee': 'Iced Coffee'
-              }[item.category] || 'Unknown';
+                'hot_coffee': 'قهوه گرم',
+                'food': 'غذا و دسر',
+                'hot_drink': 'نوشیدنی گرم',
+                'cold_drink': 'نوشیدنی سرد',
+                'iced_coffee': 'قهوه سرد'
+              }[item.category] || 'نامشخص';
               const div = document.createElement('div');
               div.className = 'item-card';
               let ingredientsHtml = '';
@@ -507,11 +754,11 @@
                 ingredientsHtml += `
                   <div class="ingredient-row">
                     <select id="edit-ing-name-${key}-${index}" onchange="updateUnit('${key}', ${index})">
-                      <option value="">Select Ingredient</option>
+                      <option value="">انتخاب ماده اولیه</option>
                       ${Object.values(stockIngredients).map(ing => `<option value="${ing.name}" ${ingName === ing.name ? 'selected' : ''}>${ing.name}</option>`).join('')}
                     </select>
-                    <input id="edit-ing-quantity-${key}-${index}" placeholder="Quantity" type="number" step="0.01" value="${ingData.quantity || 0}" />
-                    <input id="edit-ing-unit-${key}-${index}" placeholder="Unit" value="${ingData.unit || ''}" readonly />
+                    <input id="edit-ing-quantity-${key}-${index}" placeholder="مقدار" type="number" step="0.01" value="${ingData.quantity || 0}" />
+                    <input id="edit-ing-unit-${key}-${index}" placeholder="واحد" value="${ingData.unit || ''}" readonly />
                     <button onclick="removeIngredientRow(this)">حذف</button>
                   </div>
                 `;
@@ -520,41 +767,41 @@
                 <img src="${item.img}" class="item-img" />
                 <strong>${item.name}</strong>
                 <div>${item.desc}</div>
-                <div>${item.price.toLocaleString('fa-IR')} Toman</div>
-                <div>Category: ${categoryLabel}</div>
-                <div>Status: ${item.status || 'Available'}</div>
+                <div>${item.price.toLocaleString('fa-IR')} تومان</div>
+                <div>دسته‌بندی: ${categoryLabel}</div>
+                <div>وضعیت: ${item.status || 'موجود'}</div>
                 <div class="item-actions">
-                  <button onclick="toggleEdit('${key}')">Edit</button>
-                  <button onclick="duplicateItem('${key}')">Duplicate</button>
-                  <button onclick="deleteItem('${key}')">Delete</button>
+                  <button onclick="toggleEdit('${key}')">ویرایش</button>
+                  <button onclick="duplicateItem('${key}')">کپی</button>
+                  <button onclick="deleteItem('${key}')">حذف</button>
                   <button onclick="moveItem('${key}', -1)">⬆️</button>
                   <button onclick="moveItem('${key}', 1)">⬇️</button>
                 </div>
                 <div class="edit-form" id="edit-form-${key}">
-                  <input id="edit-name-${key}" placeholder="Name" value="${item.name || ''}" />
-                  <input id="edit-desc-${key}" placeholder="Description" value="${item.desc || ''}" />
-                  <input id="edit-price-${key}" placeholder="Price (Toman)" type="number" value="${item.price || ''}" />
-                  <input id="edit-img-${key}" placeholder="Image URL" value="${item.img || ''}" />
-                  <input id="edit-position-${key}" placeholder="Order" type="number" value="${item.position || ''}" />
+                  <input id="edit-name-${key}" placeholder="نام" value="${item.name || ''}" />
+                  <input id="edit-desc-${key}" placeholder="توضیحات" value="${item.desc || ''}" />
+                  <input id="edit-price-${key}" placeholder="قیمت (تومان)" type="number" value="${item.price || ''}" />
+                  <input id="edit-img-${key}" placeholder="آدرس تصویر" value="${item.img || ''}" />
+                  <input id="edit-position-${key}" placeholder="ترتیب" type="number" value="${item.position || ''}" />
                   <select id="edit-category-${key}">
-                    <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>Hot Coffee</option>
-                    <option value="food" ${item.category === 'food' ? 'selected' : ''}>Food&Dessert</option>
-                    <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>Hot Drink</option>
-                    <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>Cold Drink</option>
-                    <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>Iced Coffee</option>
+                    <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>قهوه گرم</option>
+                    <option value="food" ${item.category === 'food' ? 'selected' : ''}>غذا و دسر</option>
+                    <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>نوشیدنی گرم</option>
+                    <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>نوشیدنی سرد</option>
+                    <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>قهوه سرد</option>
                   </select>
                   <select id="edit-status-${key}">
-                    <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>Available</option>
-                    <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>Not Available</option>
-                    <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>Coming Soon</option>
+                    <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>موجود</option>
+                    <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>ناموجود</option>
+                    <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>به‌زودی</option>
                   </select>
-                  <strong>Ingredients</strong>
+                  <strong>مواد اولیه</strong>
                   <div id="ingredients-container-${key}">
                     ${ingredientsHtml}
                   </div>
                   <button class="add-ingredient-btn" onclick="addIngredientRow('${key}')">افزودن ماده اولیه</button>
-                  <button onclick="saveEdit('${key}')">Save</button>
-                  <button onclick="cancelEdit('${key}')">Cancel</button>
+                  <button onclick="saveEdit('${key}')">ذخیره</button>
+                  <button onclick="cancelEdit('${key}')">لغو</button>
                 </div>
               `;
               container.appendChild(div);
@@ -581,7 +828,7 @@
       const position = parseInt(document.getElementById(`edit-position-${key}`).value);
       const category = document.getElementById(`edit-category-${key}`).value;
       const status = document.getElementById(`edit-status-${key}`).value;
-      if (!name || !price || !img || !category || !status) return alert("Name, price, image, category, and status are required.");
+      if (!name || !price || !img || !category || !status) return alert("نام، قیمت، تصویر، دسته‌بندی و وضعیت الزامی است.");
       const ingredients = {};
       let index = 0;
       while (document.getElementById(`edit-ing-name-${key}-${index}`)) {
@@ -593,6 +840,13 @@
         }
         index++;
       }
+      const invalidChars = /[.#$/[\]]/;
+      for (const ingKey in ingredients) {
+        if (invalidChars.test(ingKey)) {
+          alert(`نام ماده اولیه "${ingKey}" شامل کاراکترهای نامعتبر است: . # $ / [ ]`);
+          return;
+        }
+      }
       const data = { name, desc, price, img, position, category, status, ingredients };
       update(ref(db, `menuItems/${key}`), data);
       toggleEdit(key);
@@ -603,7 +857,7 @@
     };
 
     window.deleteItem = (key) => {
-      if (confirm('Are you sure you want to delete this item?')) remove(ref(db, `menuItems/${key}`));
+      if (confirm('آیا مطمئن هستید که می‌خواهید این آیتم را حذف کنید؟')) remove(ref(db, `menuItems/${key}`));
     };
 
     window.duplicateItem = (key) => {
@@ -631,69 +885,32 @@
       }, { onlyOnce: true });
     };
 
-    window.loadReportModal = (type) => {
-      document.getElementById('overlay').style.display = 'block';
-      const modal = document.getElementById('reportModal');
-      modal.style.display = 'block';
-      modal.innerHTML = `<h3>سفارش‌ها</h3><button onclick="closeModal()">بستن</button><button onclick="loadReportModal('${type}')">به‌روزرسانی</button>`;
-      const range = getDateFilter(type);
-      onValue(ordersRef, snap => {
-        const data = snap.val() || {};
-        let total = 0;
-        Object.entries(data).forEach(([key, order]) => {
-          const orderDate = new Date(order.date);
-          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
-          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
-            total += Object.values(order.items).reduce((s,i)=>s+i.qty*i.price, 0);
-            const formattedDate = orderDate.toLocaleString('fa-IR', { 
-              timeZone: 'Asia/Tehran',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            modal.innerHTML += `<div class='order-card'><pre>${order.receipt}</pre><div>تاریخ: ${formattedDate}</div><button onclick="deleteOrder('${key}')">حذف</button></div>`;
-          }
+    window.generateShoppingList = () => {
+      if (lowStockWarnings.length === 0) {
+        alert('هیچ موردی به سطح هشدار نرسیده است.');
+        return;
+      }
+      const listText = `لیست خرید:\n${lowStockWarnings.join('\n')}`;
+      if (navigator.share) {
+        navigator.share({
+          title: 'لیست خرید کافه تراس',
+          text: listText
+        }).then(() => {
+          console.log('با موفقیت به اشتراک گذاشته شد');
+        }).catch((error) => {
+          console.error('خطا در اشتراک‌گذاری', error);
+          alert(listText);
         });
-        modal.innerHTML += `<hr><strong>جمع کل: ${total.toLocaleString('fa-IR')} تومان</strong>`;
-      }, { onlyOnce: true });
-    };
-
-    window.loadStatsModal = (type) => {
-      document.getElementById('overlay').style.display = 'block';
-      const modal = document.getElementById('reportModal');
-      modal.style.display = 'block';
-      modal.innerHTML = `<h3>آمار فروش</h3><button onclick="closeModal()">بستن</button><button onclick="loadStatsModal('${type}')">به‌روزرسانی</button>`;
-      const range = getDateFilter(type);
-      onValue(ordersRef, snap => {
-        const data = snap.val() || {};
-        const stats = {}; let total = 0;
-        Object.values(data).forEach(order => {
-          const orderDate = new Date(order.date);
-          orderDate.setTime(orderDate.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST (UTC+3:30)
-          if (!range || (orderDate >= range.start && orderDate <= range.end)) {
-            Object.values(order.items).forEach(i => {
-              if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
-              stats[i.name].qty += i.qty;
-              stats[i.name].revenue += i.qty * i.price;
-              total += i.qty * i.price;
-            });
-          }
-        });
-        Object.entries(stats).forEach(([name, stat]) => {
-          modal.innerHTML += `<div class='order-card'>${name}: ${stat.qty} واحد - ${stat.revenue.toLocaleString('fa-IR')} تومان</div>`;
-        });
-        modal.innerHTML += `<hr><strong>جمع درآمد: ${total.toLocaleString('fa-IR')} تومان</strong>`;
-      }, { onlyOnce: true });
+      } else {
+        alert(listText);
+      }
     };
 
     window.loadInventoryModal = () => {
       document.getElementById('overlay').style.display = 'block';
       const modal = document.getElementById('reportModal');
       modal.style.display = 'block';
-      modal.innerHTML = `<h3>وضعیت موجودی</h3><button onclick="closeModal()">بستن</button><button onclick="loadInventoryModal()">به‌روزرسانی</button>`;
+      modal.innerHTML = `<h3>وضعیت موجودی</h3><button onclick="closeAllModals()">بستن</button><button onclick="loadInventoryModal()">به‌روزرسانی</button>`;
       
       onValue(menuRef, menuSnap => {
         const menuData = menuSnap.val() || {};
@@ -703,7 +920,6 @@
             const stockData = stockSnap.val() || {};
             const inventory = {};
 
-            // Initialize inventory with stock data
             Object.entries(stockData).forEach(([stockKey, stock]) => {
               inventory[stock.name] = {
                 stock: stock.quantity || 0,
@@ -713,7 +929,6 @@
               };
             });
 
-            // Calculate consumption based on orders
             Object.values(ordersData).forEach(order => {
               Object.values(order.items).forEach(item => {
                 const menuItem = Object.values(menuData).find(m => m.name === item.name);
@@ -728,7 +943,6 @@
               });
             });
 
-            // Display inventory
             Object.entries(inventory).forEach(([ingName, ingData]) => {
               const remaining = ingData.stock - ingData.consumed;
               modal.innerHTML += `
@@ -747,46 +961,106 @@
       }, { onlyOnce: true });
     };
 
-    window.deleteOrder = (key) => {
-      if (confirm("آیا مطمئن هستید که می‌خواهید این سفارش را حذف کنید؟")) remove(ref(db, `orders/${key}`));
+    window.savePurchaseCost = () => {
+      const name = document.getElementById('purchase-stock-name').value.trim();
+      const quantity = parseFloat(document.getElementById('purchase-quantity').value);
+      const unit = document.getElementById('purchase-unit').value.trim();
+      const amount = parseFloat(document.getElementById('purchase-amount').value);
+      const date = document.getElementById('purchase-date').value;
+      if (!name || !quantity || !unit || !amount || !date) return alert("ماده اولیه، مقدار، واحد، مبلغ و تاریخ الزامی است.");
+      const data = { type: 'purchase', ingredient: name, quantity, unit, amount, date };
+      push(costsRef, data).then(() => {
+        populateCostDropdown();
+        closeModal('add-purchase-cost-modal');
+        resetPurchaseForm();
+      });
     };
 
-    window.closeModal = () => {
-      document.getElementById('modal').style.display = 'none';
-      document.getElementById('reportModal').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
+    window.resetPurchaseForm = () => {
+      ['purchase-stock-name', 'purchase-quantity', 'purchase-unit', 'purchase-amount', 'purchase-date'].forEach(id => document.getElementById(id).value = '');
     };
 
-    function getDateFilter(type) {
-      // Get current date in IRST (UTC+3:30)
-      const now = new Date();
-      now.setTime(now.getTime() + (3.5 * 60 * 60 * 1000)); // Adjust for IRST
-      const start = new Date(now);
-      const end = new Date(now);
+    window.saveOtherCost = () => {
+      const category = document.getElementById('other-category').value.trim();
+      const desc = document.getElementById('other-desc').value.trim();
+      const amount = parseFloat(document.getElementById('other-amount').value);
+      const date = document.getElementById('other-date').value;
+      if (!category || !amount || !date) return alert("دسته‌بندی، مبلغ و تاریخ الزامی است.");
+      const data = { type: 'other', category, desc, amount, date };
+      push(costsRef, data).then(() => {
+        populateCostDropdown();
+        closeModal('add-other-cost-modal');
+        resetOtherForm();
+      });
+    };
 
-      if (type === 'today') {
-        start.setHours(0, 0, 0, 0);
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'yesterday') {
-        start.setDate(start.getDate() - 1);
-        start.setHours(0, 0, 0, 0);
-        end.setDate(end.getDate() - 1);
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'month') {
-        start.setDate(1);
-        start.setHours(0, 0, 0, 0);
-        end.setDate(end.getDate());
-        end.setHours(23, 59, 59, 999);
-      } else if (type === 'all') {
-        return null;
-      }
+    window.resetOtherForm = () => {
+      ['other-category', 'other-desc', 'other-amount', 'other-date'].forEach(id => document.getElementById(id).value = '');
+    };
 
-      return { start, end };
-    }
+    window.loadCostReportModal = () => {
+      document.getElementById('overlay').style.display = 'block';
+      const modal = document.getElementById('reportModal');
+      modal.style.display = 'block';
+      modal.innerHTML = `<h3>گزارش هزینه‌ها و سود</h3><button onclick="closeAllModals()">بستن</button><button onclick="loadCostReportModal()">به‌روزرسانی</button>`;
+
+      onValue(ordersRef, ordersSnap => {
+        const ordersData = ordersSnap.val() || {};
+        let totalSales = 0;
+        Object.values(ordersData).forEach(order => {
+          Object.values(order.items || {}).forEach(item => {
+            totalSales += item.qty * item.price;
+          });
+        });
+
+        onValue(costsRef, costsSnap => {
+          const costsData = costsSnap.val() || {};
+          let totalCosts = 0;
+          Object.values(costsData).forEach(cost => {
+            totalCosts += cost.amount;
+          });
+
+          const netProfit = totalSales - totalCosts;
+
+          modal.innerHTML += `
+            <div class="inventory-card">
+              <strong>مجموع فروش:</strong> ${totalSales.toLocaleString('fa-IR')} تومان
+            </div>
+            <div class="inventory-card">
+              <strong>مجموع هزینه‌ها:</strong> ${totalCosts.toLocaleString('fa-IR')} تومان
+            </div>
+            <div class="inventory-card">
+              <strong>سود خالص:</strong> ${netProfit.toLocaleString('fa-IR')} تومان
+            </div>
+          `;
+
+          modal.innerHTML += `<h4>لیست هزینه‌ها</h4>`;
+          Object.entries(costsData).forEach(([key, cost]) => {
+            let costDetails = '';
+            if (cost.type === 'purchase') {
+              costDetails = `خرید ماده اولیه: ${cost.ingredient} (${cost.quantity} ${cost.unit})`;
+            } else if (cost.type === 'other') {
+              costDetails = `${cost.category} - ${cost.desc || ''}`;
+            }
+            modal.innerHTML += `
+              <div class="inventory-card">
+                <strong>${costDetails}</strong>
+                <div>مبلغ: ${cost.amount.toLocaleString('fa-IR')} تومان</div>
+                <div>تاریخ: ${cost.date}</div>
+                <div class="item-actions">
+                  <button onclick="deleteCost('${key}')">حذف</button>
+                </div>
+              </div>
+            `;
+          });
+        }, { onlyOnce: true });
+      }, { onlyOnce: true });
+    };
 
     window.onload = () => {
       loadStockIngredients();
       loadMenu();
+      populateCostDropdown();
     };
   </script>
 </body>
