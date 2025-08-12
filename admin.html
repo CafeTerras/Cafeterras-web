@@ -1,4 +1,43 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -55,7 +94,7 @@
     .section.active {
       display: block;
     }
-    .item-card, .order-card, .inventory-card {
+    .item-card, .order-card, .inventory-card, .stock-item-card {
       background: rgba(255, 255, 255, 0.8);
       border-radius: 8px;
       padding: 10.8px;
@@ -123,7 +162,7 @@
       background: rgba(0,0,0,0.3);
       z-index: 999;
     }
-    #menuItems {
+    #menuItems, #stockItems {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 12px;
@@ -208,6 +247,7 @@
       <button class="tab-button active" onclick="showTab('menu')">مدیریت منو</button>
       <button class="tab-button" onclick="showTab('inventory')">مدیریت موجودی</button>
       <button class="tab-button" onclick="showTab('costs')">مدیریت هزینه‌ها</button>
+      <button class="tab-button" onclick="showTab('stock')">مدیریت مواد اولیه</button>
     </div>
   </header>
 
@@ -238,6 +278,12 @@
     <button onclick="openModal('add-other-cost-modal')">افزودن هزینه دیگر</button>
     <button onclick="openModal('edit-cost-modal')">ویرایش هزینه</button>
     <button onclick="loadCostReportModal()">گزارش هزینه‌ها و سود</button>
+  </div>
+
+  <div class="section" id="stock">
+    <h3><span class="header-box">مدیریت مواد اولیه</span></h3>
+    <button onclick="openModal('add-stock-modal')">افزودن ماده اولیه جدید</button>
+    <div id="stockItems"></div>
   </div>
 
   <div id="add-item-modal" class="modal" style="display:none;">
@@ -271,7 +317,7 @@
 
   <div id="add-stock-modal" class="modal" style="display:none;">
     <div class="item-card stock-form-card">
-      <strong>افزودن موجودی جدید</strong>
+      <strong>افزودن ماده اولیه جدید</strong>
       <input id="stock-name" placeholder="نام ماده اولیه" />
       <input id="stock-quantity" placeholder="مقدار" type="number" step="0.01" />
       <input id="stock-unit" placeholder="واحد" />
@@ -279,6 +325,21 @@
       <div class="item-actions">
         <button onclick="saveStock()">ذخیره</button>
         <button onclick="closeModal('add-stock-modal')">لغو</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="edit-stock-modal" class="modal" style="display:none;">
+    <div class="item-card stock-form-card">
+      <strong>ویرایش ماده اولیه</strong>
+      <input id="edit-stock-id" type="hidden" />
+      <input id="edit-stock-name" placeholder="نام ماده اولیه" />
+      <input id="edit-stock-quantity" placeholder="مقدار" type="number" step="0.01" />
+      <input id="edit-stock-unit" placeholder="واحد" />
+      <input id="edit-stock-threshold" placeholder="آستانه" type="number" step="0.01" />
+      <div class="item-actions">
+        <button onclick="saveEditedStock()">ذخیره</button>
+        <button onclick="closeModal('edit-stock-modal')">لغو</button>
       </div>
     </div>
   </div>
@@ -433,6 +494,7 @@
         populateStockDropdown();
         populatePurchaseDropdown();
         populateCostDropdown();
+        loadStockItems();
         closeModal('add-stock-modal');
         resetStockForm();
       });
@@ -477,6 +539,7 @@
               populateStockDropdown();
               populatePurchaseDropdown();
               populateCostDropdown();
+              loadStockItems();
               closeModal('update-stock-modal');
               resetUpdateStockForm();
               alert("موجودی با موفقیت به‌روزرسانی شد!");
@@ -631,6 +694,86 @@
           .catch(error => {
             console.error("خطا در حذف هزینه:", error);
             alert("خطا در حذف هزینه.");
+          });
+      }
+    };
+
+    window.loadStockItems = () => {
+      onValue(stockRef, snap => {
+        const stockData = snap.val() || {};
+        const container = document.getElementById('stockItems');
+        container.innerHTML = '';
+        Object.entries(stockData).forEach(([key, stock]) => {
+          const div = document.createElement('div');
+          div.className = 'stock-item-card';
+          div.innerHTML = `
+            <strong>${stock.name}</strong>
+            <div>مقدار: ${stock.quantity.toFixed(2)} ${stock.unit}</div>
+            <div>آستانه: ${stock.threshold.toFixed(2)} ${stock.unit}</div>
+            <div class="item-actions">
+              <button onclick="editStockItem('${key}')">ویرایش</button>
+              <button onclick="deleteStockItem('${key}')">حذف</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+    };
+
+    window.editStockItem = (key) => {
+      onValue(ref(db, `stock/${key}`), snap => {
+        const stock = snap.val();
+        if (stock) {
+          document.getElementById('edit-stock-id').value = key;
+          document.getElementById('edit-stock-name').value = stock.name || '';
+          document.getElementById('edit-stock-quantity').value = stock.quantity || '';
+          document.getElementById('edit-stock-unit').value = stock.unit || '';
+          document.getElementById('edit-stock-threshold').value = stock.threshold || '';
+          openModal('edit-stock-modal');
+        }
+      }, { onlyOnce: true });
+    };
+
+    window.saveEditedStock = () => {
+      const key = document.getElementById('edit-stock-id').value;
+      const name = document.getElementById('edit-stock-name').value.trim();
+      const quantity = parseFloat(document.getElementById('edit-stock-quantity').value);
+      const unit = document.getElementById('edit-stock-unit').value.trim();
+      const threshold = parseFloat(document.getElementById('edit-stock-threshold').value);
+      if (!name || !quantity || !unit || !threshold) return alert("نام، مقدار، واحد و آستانه الزامی است.");
+      const invalidChars = /[.#$/[\]]/;
+      if (invalidChars.test(name)) return alert("نام ماده اولیه نمی‌تواند شامل کاراکترهای . # $ / [ ] باشد.");
+      const data = { name, quantity, unit, threshold };
+      update(ref(db, `stock/${key}`), data)
+        .then(() => {
+          loadStockIngredients();
+          populateStockDropdown();
+          populatePurchaseDropdown();
+          populateCostDropdown();
+          loadStockItems();
+          closeModal('edit-stock-modal');
+          alert("ماده اولیه با موفقیت ویرایش شد!");
+        })
+        .catch(error => {
+          console.error("خطا در ویرایش ماده اولیه:", error);
+          alert("خطا در ویرایش ماده اولیه.");
+        });
+    };
+
+    window.deleteStockItem = (key) => {
+      if (confirm('آیا مطمئن هستید که می‌خواهید این ماده اولیه را حذف کنید؟')) {
+        remove(ref(db, `stock/${key}`))
+          .then(() => {
+            loadStockIngredients();
+            populateStockDropdown();
+            populatePurchaseDropdown();
+            populateCostDropdown();
+            loadStockItems();
+            alert("ماده اولیه با موفقیت حذف شد!");
+          })
+          .catch(error => {
+            console.error("خطا در حذف ماده اولیه:", error);
+            alert("خطا در حذف ماده اولیه.");
           });
       }
     };
@@ -1107,6 +1250,7 @@
       loadStockIngredients();
       loadMenu();
       populateCostDropdown();
+      loadStockItems();
     };
   </script>
 </body>
