@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>گزارش فاکتورها - کافه تراس</title>
+  <style>
+    body { font-family: sans-serif; background: #ffecb3; padding: 16px; }
+    h2 { text-align: center; color: #1A237E; margin-bottom: 8px;}
+    #reportModal { background: #fff; border-radius: 12px; padding: 20px; max-width: 1000px; margin: auto; }
+    select, input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin: 4px; }
+    button { background: #1A237E; color: white; border: none; border-radius: 8px; padding: 8px 14px; margin: 6px; cursor: pointer; }
+    .shift-header { background: #1A237E; color: #fff; padding: 8px 12px; border-radius: 8px; margin-top: 12px; font-weight: bold; }
+    .report-item { background: #f7f7f7; border-radius: 8px; padding: 10px; margin-top: 8px; }
+    .total-report { font-weight: bold; margin-top: 8px; color: #1A237E; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-bottom:10px; }
+    .small-btn { padding:6px 10px; border-radius:6px; background:#4CAF50; color:#fff; border:none; cursor:pointer; }
+    .delete-btn { background:#D32F2F; color:#fff; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; }
+    pre { white-space: pre-wrap; font-family: inherit; }
+    @media (max-width:600px){
+      .controls { flex-direction:column; align-items:stretch; }
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 گزارش فاکتورها - کافه تراس</h2>
+
+  <div id="reportModal">
+    <div class="controls">
+      <label for="dateFilter">تاریخ (انتخاب چندتایی):</label>
+      <select id="dateFilter" multiple onchange="renderReport()" style="min-width:200px"></select>
+
+      <input type="text" id="searchBox" placeholder="جستجو در توضیحات فاکتورها..." oninput="renderReport()" style="min-width:220px" />
+
+      <button id="refreshBtn" class="small-btn">بروزرسانی</button>
+      <button id="showAllBtn" class="small-btn" onclick="clearFilters()">نمایش تمام تاریخ‌ها</button>
+    </div>
+
+    <div id="reportContent"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    // ---------- تنظیمات Firebase ----------
+    const firebaseConfig = {
+      apiKey: "AIzaSyAw0vcOTv4fYOlvQrWhzYEiWwykkd3FmuQ",
+      authDomain: "cafeterrasapp.firebaseapp.com",
+      databaseURL: "https://cafeterrasapp-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cafeterrasapp",
+      storageBucket: "cafeterrasapp.appspot.com",
+      messagingSenderId: "574400800164",
+      appId: "1:574400800164:web:fc4bd509e158a6fbeecd31"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const ordersRef = ref(db, "orders");
+
+    // ---------- المان‌ها ----------
+    const dateFilter = document.getElementById("dateFilter");
+    const searchBox = document.getElementById("searchBox");
+    const reportContent = document.getElementById("reportContent");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    // ---------- تبدیل ارقام فارسی به انگلیسی ----------
+    function persianToEnglishDigits(str) {
+      if (!str && str !== "") return str;
+      const persian = "۰۱۲۳۴۵۶۷۸۹";
+      const english = "0123456789";
+      return String(str).split("").map(ch => {
+        const idx = persian.indexOf(ch);
+        return idx >= 0 ? english[idx] : ch;
+      }).join("");
+    }
+
+    // ---------- تبدیل زمان فارسی "۱۹:۴۱:۱۳" به دقیقه از شروع روز ----------
+    function timeStringToMinutes(timeStr) {
+      if (!timeStr) return null;
+      // ممکنه کاراکترهای فاصله یا فارسی داشته باشه، تمام ارقام رو به انگلیسی تبدیل کن
+      const cleaned = persianToEnglishDigits(timeStr.trim());
+      const parts = cleaned.split(":");
+      if (parts.length < 2) return null;
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) || 0;
+      return (isNaN(h) || isNaN(m)) ? null : (h * 60 + m);
+    }
+
+    // ---------- تعیین شیفت براساس دقیقه از روز ----------
+    // تعریف مورد نظر: شیفت صبح = 09:00 تا 16:59 (9*60 .. <17*60)
+    // شیفت شب = 00:00 تا 02:59 و 17:00 تا 23:59 همان روز
+    function getShiftFromTimeStr(timeStr) {
+      const minutes = timeStringToMinutes(timeStr);
+      if (minutes === null) return null;
+      if (minutes >= 9 * 60 && minutes < 17 * 60) return "شیفت صبح";
+      if ((minutes >= 0 && minutes < 3 * 60) || (minutes >= 17 * 60 && minutes <= 23 * 60 + 59)) return "شیفت شب";
+      return null;
+    }
+
+    // ---------- پر کردن لیست تاریخ‌ها ----------
+    function populateDateFilter() {
+      onValue(ordersRef, (snap) => {
+        const data = snap.val() || {};
+        const dates = new Set();
+        Object.values(data).forEach(order => {
+          if (order && order.date) dates.add(order.date);
+        });
+        // پاک کردن و افزودن گزینه‌ها
+        dateFilter.innerHTML = "";
+        const sorted = Array.from(dates).sort((a,b) => a < b ? -1 : 1); // ترتیب رشته‌ای کافی است برای تاریخ شمسی در فرمت یکنواخت
+        sorted.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d;
+          opt.textContent = d;
+          dateFilter.appendChild(opt);
+        });
+      }, { onlyOnce: true });
+    }
+
+    // ---------- پاک کردن فیلترها ----------
+    function clearFilters() {
+      // لغو انتخاب هر گزینه در select
+      for (let i = 0; i < dateFilter.options.length; i++) {
+        dateFilter.options[i].selected = false;
+      }
+      searchBox.value = "";
+      renderReport();
+    }
+
+    // ---------- محاسبه مجموع یک فاکتور ----------
+    function computeOrderTotal(order) {
+      if (!order) return 0;
+      let itemsTotal = 0;
+      if (order.items) {
+        // items ممکن است شیء با کلیدهای تصادفی باشد
+        Object.values(order.items).forEach(it => {
+          const qty = Number(it.qty) || 0;
+          const price = Number(it.price) || 0;
+          itemsTotal += qty * price;
+        });
+      }
+      const extra = Number(order.extra?.amount) || 0;
+      const discount = Number(order.discount) || 0;
+      return itemsTotal + extra - discount;
+    }
+
+    // ---------- رندر گزارش تفکیکی بر اساس شیفت‌ها ----------
+    function renderReport() {
+      onValue(ordersRef, (snap) => {
+        const data = snap.val() || {};
+        const selectedDates = Array.from(dateFilter.selectedOptions).map(o => o.value);
+        const searchTerm = (searchBox.value || "").trim().toLowerCase();
+
+        // ساختار: grouped[shift][date] = [orders...]
+        const grouped = { "شیفت صبح": {}, "شیفت شب": {} };
+        let grandMorning = 0, grandNight = 0;
+
+        Object.entries(data).forEach(([key, order]) => {
+          if (!order) return;
+          const date = order.date; // تاریخ شمسی مثل "۱۴۰۴/۰۵/۱۸"
+          const time = order.time; // زمان فارسی مثل "۱۹:۴۱:۱۳"
+          if (!date || !time) return;
+
+          // فیلتر بر اساس تاریخ انتخاب‌شده (اگر انتخاب شده باشند)
+          if (selectedDates.length > 0 && !selectedDates.includes(date)) return;
+
+          // جستجو: در customerNote (توضیحات) یا در receipt (در صورت نیاز) نگاه می‌کنیم
+          const note = (order.customerNote || "").toString().toLowerCase();
+          const receipt = (order.receipt || "").toString().toLowerCase();
+          if (searchTerm) {
+            if (!(note.includes(searchTerm) || receipt.includes(searchTerm))) {
+              return; // اگر شامل جستجو نبود، از نتایج حذف کن
+            }
+          }
+
+          const shift = getShiftFromTimeStr(time);
+          if (!shift) return;
+
+          if (!grouped[shift][date]) grouped[shift][date] = [];
+          grouped[shift][date].push({ key, ...order });
+        });
+
+        // حالا نمایش
+        reportContent.innerHTML = "";
+
+        // سربرگ شیفت صبح
+        const morningHeader = document.createElement("div");
+        morningHeader.className = "shift-header";
+        morningHeader.textContent = "🌅 شیفت صبح — 09:00 تا 16:59";
+        reportContent.appendChild(morningHeader);
+
+        // هر تاریخ در شیفت صبح
+        const morningDates = Object.keys(grouped["شیفت صبح"]).sort();
+        if (morningDates.length === 0) {
+          const p = document.createElement("div"); p.textContent = "فاکتوری در شیفت صبح یافت نشد."; reportContent.appendChild(p);
+        }
+        morningDates.forEach(date => {
+          const list = grouped["شیفت صبح"][date];
+          let dateTotal = 0;
+          list.forEach(order => {
+            const total = computeOrderTotal(order);
+            dateTotal += total;
+            const box = document.createElement("div");
+            box.className = "report-item";
+            box.innerHTML = `<div><strong>تاریخ: ${date} — زمان: ${order.time}</strong></div>
+                             <pre>${order.receipt || ""}</pre>
+                             <div>جمع فاکتور: ${total.toLocaleString()} تومان</div>
+                             <div style="margin-top:6px"><button class="delete-btn" onclick="deleteInvoice('${order.key}')">حذف فاکتور</button></div>`;
+            reportContent.appendChild(box);
+          });
+          const sumDiv = document.createElement("div");
+          sumDiv.className = "total-report";
+          sumDiv.textContent = `جمع فروش ${date} (صبح): ${dateTotal.toLocaleString()} تومان`;
+          reportContent.appendChild(sumDiv);
+          grandMorning += dateTotal;
+        });
+
+        // فاصله
+        reportContent.appendChild(document.createElement("hr"));
+
+        // سربرگ شیفت شب
+        const nightHeader = document.createElement("div");
+        nightHeader.className = "shift-header";
+        nightHeader.textContent = "🌙 شیفت شب — 00:00 تا 02:59 و 17:00 تا 23:59 (همان روز)";
+        reportContent.appendChild(nightHeader);
+
+        // هر تاریخ در شیفت شب
+        const nightDates = Object.keys(grouped["شیفت شب"]).sort();
+        if (nightDates.length === 0) {
+          const p = document.createElement("div"); p.textContent = "فاکتوری در شیفت شب یافت نشد."; reportContent.appendChild(p);
+        }
+        nightDates.forEach(date => {
+          const list = grouped["شیفت شب"][date];
+          let dateTotal = 0;
+          list.forEach(order => {
+            const total = computeOrderTotal(order);
+            dateTotal += total;
+            const box = document.createElement("div");
+            box.className = "report-item";
+            box.innerHTML = `<div><strong>تاریخ: ${date} — زمان: ${order.time}</strong></div>
+                             <pre>${order.receipt || ""}</pre>
+                             <div>جمع فاکتور: ${total.toLocaleString()} تومان</div>
+                             <div style="margin-top:6px"><button class="delete-btn" onclick="deleteInvoice('${order.key}')">حذف فاکتور</button></div>`;
+            reportContent.appendChild(box);
+          });
+          const sumDiv = document.createElement("div");
+          sumDiv.className = "total-report";
+          sumDiv.textContent = `جمع فروش ${date} (شب): ${dateTotal.toLocaleString()} تومان`;
+          reportContent.appendChild(sumDiv);
+          grandNight += dateTotal;
+        });
+
+        // جمع کل هر شیفت و نهایی
+        const separator = document.createElement("div");
+        separator.style.marginTop = "12px";
+        reportContent.appendChild(separator);
+
+        const totalsBox = document.createElement("div");
+        totalsBox.className = "total-report";
+        totalsBox.textContent = `جمع کل فروش — صبح: ${grandMorning.toLocaleString()} تومان  |  شب: ${grandNight.toLocaleString()} تومان  |  مجموع: ${(grandMorning + grandNight).toLocaleString()} تومان`;
+        reportContent.appendChild(totalsBox);
+      }, { onlyOnce: true });
+    }
+
+    // ---------- حذف فاکتور (از orders) ----------
+    window.deleteInvoice = (key) => {
+      if (!confirm("آیا مایل به حذف این فاکتور هستید؟")) return;
+      remove(ref(db, `orders/${key}`))
+        .then(() => {
+          alert("فاکتور حذف شد.");
+          populateDateFilter();
+          renderReport();
+        })
+        .catch(err => {
+          console.error(err);
+          alert("خطا در حذف فاکتور.");
+        });
+    };
+
+    // ---------- رویدادها ----------
+    refreshBtn.onclick = () => { populateDateFilter(); renderReport(); };
+    searchBox.addEventListener("keyup", (e) => {
+      // اگر اینتر زد، رندر مجدد کن
+      if (e.key === "Enter") renderReport();
+    });
+
+    // اجرا در بارگذاری صفحه
+    populateDateFilter();
+    renderReport();
+
+  </script>
+</body>
+</html>
