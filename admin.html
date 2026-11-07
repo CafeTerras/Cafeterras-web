@@ -45,8 +45,8 @@
   <title>Admin Café Terras</title>
   <style>
     :root {
-      --primary-bg: #FFC107;
-      --primary-color: #1A237E;
+      --primary-bg: #F7F4E9;
+      --primary-color: #173B56;
     }
     .header-box {
       background: white;
@@ -190,7 +190,7 @@
       cursor: pointer;
     }
     .tab-button.active {
-      background: #FFD54F;
+      background: #DCEAE7;
       color: var(--primary-color);
     }
     .filter-buttons {
@@ -254,13 +254,20 @@
   <div class="section active" id="menu">
     <div class="filter-buttons">
       <button onclick="filterItems('all')">همه</button>
-      <button onclick="filterItems('hot_coffee')">قهوه گرم</button>
-      <button onclick="filterItems('food')">غذا و دسر</button>
-      <button onclick="filterItems('hot_drink')">نوشیدنی گرم</button>
-      <button onclick="filterItems('cold_drink')">نوشیدنی سرد</button>
-      <button onclick="filterItems('iced_coffee')">قهوه سرد</button>
+      <button onclick="filterItems('hot_coffee')">قهوه‌های گرم</button>
+      <button onclick="filterItems('iced_coffee')">قهوه‌های سرد</button>
+      <button onclick="filterItems('hot_drink')">نوشیدنی‌های گرم</button>
+      <button onclick="filterItems('cold_drink')">نوشیدنی‌های خنک</button>
+      <button onclick="filterItems('drinks')">نوشیدنی</button>
+      <button onclick="filterItems('breakfast')">صبحانه</button>
+      <button onclick="filterItems('food')">غذا و میان‌وعده</button>
+      <button onclick="filterItems('cakes')">کیک و شیرینی</button>
     </div>
-    <button onclick="openModal('add-item-modal')">افزودن آیتم جدید</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">
+      <button onclick="openModal('add-item-modal')">افزودن آیتم جدید</button>
+      <button onclick="syncFinalMenu()" style="background:#397F98;color:white">اعمال منوی نهایی ۳۹ آیتمی</button>
+      <span style="font-size:12px;color:#59666b">آیتم‌های قدیمی خارج از فهرست حذف نمی‌شوند؛ برای حفظ سوابق بایگانی می‌شوند.</span>
+    </div>
     <div id="menuItems"></div>
   </div>
 
@@ -296,11 +303,14 @@
       <input id="add-position" placeholder="ترتیب" type="number" />
       <select id="add-category">
         <option value="">انتخاب دسته‌بندی</option>
-        <option value="hot_coffee">قهوه گرم</option>
-        <option value="food">غذا و دسر</option>
-        <option value="hot_drink">نوشیدنی گرم</option>
-        <option value="cold_drink">نوشیدنی سرد</option>
-        <option value="iced_coffee">قهوه سرد</option>
+        <option value="hot_coffee">قهوه‌های گرم</option>
+        <option value="iced_coffee">قهوه‌های سرد</option>
+        <option value="hot_drink">نوشیدنی‌های گرم</option>
+        <option value="cold_drink">نوشیدنی‌های خنک</option>
+        <option value="drinks">نوشیدنی</option>
+        <option value="breakfast">صبحانه</option>
+        <option value="food">غذا و میان‌وعده</option>
+        <option value="cakes">کیک و شیرینی</option>
       </select>
       <select id="add-status">
         <option value="">انتخاب وضعیت</option>
@@ -436,6 +446,545 @@
     const stockRef = ref(db, 'stock');
     const costsRef = ref(db, 'costs');
 
+    // فهرست نهایی منوی تأییدشده؛ قیمت‌ها به تومان
+    const finalMenuItems = [
+  {
+    "category": "hot_coffee",
+    "name": "اسپرسو تک‌شات",
+    "price": 170000,
+    "position": 1,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "اسپرسو تک شات"
+    ]
+  },
+  {
+    "category": "hot_coffee",
+    "name": "اسپرسو دبل‌شات",
+    "price": 230000,
+    "position": 2,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "اسپرسو دبل شات"
+    ]
+  },
+  {
+    "category": "hot_coffee",
+    "name": "آمریکانو",
+    "price": 250000,
+    "position": 3,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_coffee",
+    "name": "لاته",
+    "price": 320000,
+    "position": 4,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_coffee",
+    "name": "کاپوچینو",
+    "price": 300000,
+    "position": 5,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_coffee",
+    "name": "موکا",
+    "price": 350000,
+    "position": 6,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_coffee",
+    "name": "کارامل ماکیاتو",
+    "price": 360000,
+    "position": 7,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_coffee",
+    "name": "قهوه ترک",
+    "price": 200000,
+    "position": 8,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "iced_coffee",
+    "name": "آیس آمریکانو",
+    "price": 260000,
+    "position": 9,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "iced_coffee",
+    "name": "آیس لاته",
+    "price": 330000,
+    "position": 10,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "iced_coffee",
+    "name": "آیس موکا",
+    "price": 370000,
+    "position": 11,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "iced_coffee",
+    "name": "آفوگاتو",
+    "price": 320000,
+    "position": 12,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_drink",
+    "name": "ماسالا بدون شکر",
+    "price": 250000,
+    "position": 13,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_drink",
+    "name": "هات چاکلت",
+    "price": 280000,
+    "position": 14,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_drink",
+    "name": "چای",
+    "price": 220000,
+    "position": 15,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_drink",
+    "name": "دمنوش",
+    "price": 250000,
+    "position": 16,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "hot_drink",
+    "name": "چای کرک",
+    "price": 270000,
+    "position": 17,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "cold_drink",
+    "name": "لیموناد",
+    "price": 260000,
+    "position": 18,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "cold_drink",
+    "name": "موهیتو",
+    "price": 290000,
+    "position": 19,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "cold_drink",
+    "name": "زنجبیل لیمو – Ginger Citrus Cooler",
+    "price": 290000,
+    "position": 20,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "زنجبیل لیمو",
+      "Ginger Citrus Cooler"
+    ]
+  },
+  {
+    "category": "cold_drink",
+    "name": "زردآلو کولر – Apricot Cooler",
+    "price": 260000,
+    "position": 21,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "زردآلو کولر",
+      "Apricot Cooler"
+    ]
+  },
+  {
+    "category": "cold_drink",
+    "name": "پرتقال سرخ گازدار – Blood Orange Fizz",
+    "price": 270000,
+    "position": 22,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "پرتقال سرخ گازدار",
+      "Blood Orange Fizz"
+    ]
+  },
+  {
+    "category": "cold_drink",
+    "name": "آلبالو کولر – Cherry Lime Cooler",
+    "price": 260000,
+    "position": 23,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "آلبالو کولر",
+      "Cherry Lime Cooler"
+    ]
+  },
+  {
+    "category": "cold_drink",
+    "name": "غروب استوایی – Tropical Sunset",
+    "price": 290000,
+    "position": 24,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "غروب استوایی",
+      "Tropical Sunset"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "سودا لیمویی",
+    "price": 120000,
+    "position": 25,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "آب گازدار کولاک لیمویی"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "سودا",
+    "price": 110000,
+    "position": 26,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "آب گازدار کولاک ساده"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "انرژی‌زا",
+    "price": 210000,
+    "position": 27,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "انرژی زا هایپ شیشه",
+      "انرژی‌زا هایپ شیشه",
+      "انرژی زا"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "آبجو بلک",
+    "price": 190000,
+    "position": 28,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "هوفنبرگ بلک شیشه",
+      "هوفنبرگ بلک",
+      "آبجو بلک شیشه"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "کوکاکولا",
+    "price": 140000,
+    "position": 29,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "کوکاکولا شیشه",
+      "کوکا کولا شیشه"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "کوکا کولا زیرو",
+    "price": 140000,
+    "position": 30,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "کوکاکولا زیرو شیشه",
+      "کوکاکولا زیرو",
+      "کوکا کولا زیرو شیشه"
+    ]
+  },
+  {
+    "category": "drinks",
+    "name": "آب آشامیدنی",
+    "price": 45000,
+    "position": 31,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "آب دماوند کوچک",
+      "آب دماوند"
+    ]
+  },
+  {
+    "category": "breakfast",
+    "name": "املت",
+    "price": 290000,
+    "position": 32,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "breakfast",
+    "name": "نیمرو",
+    "price": 210000,
+    "position": 33,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "breakfast",
+    "name": "سوسیس و تخم‌مرغ",
+    "price": 320000,
+    "position": 34,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "سوسیس تخم مرغ",
+      "سوسیس و تخم مرغ"
+    ]
+  },
+  {
+    "category": "breakfast",
+    "name": "عدسی",
+    "price": 270000,
+    "position": 35,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "food",
+    "name": "برگر",
+    "price": 650000,
+    "position": 36,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  },
+  {
+    "category": "food",
+    "name": "هات‌داگ",
+    "price": 400000,
+    "position": 37,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "هات داگ"
+    ]
+  },
+  {
+    "category": "food",
+    "name": "سیب‌زمینی سرخ‌کرده",
+    "price": 250000,
+    "position": 38,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": [
+      "سیب زمینی سرخکرده",
+      "سیب زمینی سرخ‌کرده",
+      "سیب‌زمینی سرخکرده"
+    ]
+  },
+  {
+    "category": "cakes",
+    "name": "کیک روز",
+    "price": 210000,
+    "position": 39,
+    "status": "Available",
+    "desc": "",
+    "img": "",
+    "ingredients": {},
+    "aliases": []
+  }
+];
+
+    function normalizeMenuName(value) {
+      return String(value || "").toLowerCase()
+        .replace(/[يى]/g, "ی").replace(/ك/g, "ک")
+        .replace(/[\u200c\sـ\-–—]/g, "")
+        .replace(/[ًٌٍَُِّْ]/g, "");
+    }
+
+    window.syncFinalMenu = () => {
+      if (!confirm("منوی Firebase با فهرست نهایی ۳۹ آیتمی هماهنگ شود؟\nقیمت‌ها و دسته‌بندی‌ها به‌روزرسانی می‌شوند. آیتم‌های خارج از فهرست حذف نمی‌شوند؛ بایگانی می‌شوند تا سوابق و دستور تهیه باقی بماند.")) return;
+      onValue(menuRef, snap => {
+        const existing = snap.val() || {};
+        const updates = {};
+        const matchedNames = new Set();
+        const targets = finalMenuItems.map(target => ({
+          target,
+          names: [target.name, ...(target.aliases || [])].map(normalizeMenuName)
+        }));
+
+        Object.entries(existing).forEach(([key, item]) => {
+          const normalized = normalizeMenuName(item && item.name);
+          const match = targets.find(entry => entry.names.includes(normalized) && !matchedNames.has(entry.target.name));
+          if (match) {
+            const t = match.target;
+            matchedNames.add(t.name);
+            updates[`menuItems/${key}/name`] = t.name;
+            updates[`menuItems/${key}/price`] = t.price;
+            updates[`menuItems/${key}/category`] = t.category;
+            updates[`menuItems/${key}/position`] = t.position;
+            updates[`menuItems/${key}/status`] = item.status === "Not Available" ? "Not Available" : "Available";
+            if (item.desc === undefined) updates[`menuItems/${key}/desc`] = "";
+            if (item.img === undefined) updates[`menuItems/${key}/img`] = "";
+            if (item.ingredients === undefined) updates[`menuItems/${key}/ingredients`] = {};
+          } else {
+            updates[`menuItems/${key}/status`] = "Archived";
+          }
+        });
+
+        finalMenuItems.forEach(target => {
+          if (matchedNames.has(target.name)) return;
+          const newKey = push(menuRef).key;
+          const { aliases, ...record } = target;
+          updates[`menuItems/${newKey}`] = record;
+        });
+
+        update(ref(db), updates)
+          .then(() => {
+            alert("منوی نهایی در Firebase اعمال شد. آیتم‌های قدیمی بایگانی شده‌اند و قابل بازیابی هستند.");
+            loadMenu();
+          })
+          .catch(error => {
+            console.error("Menu sync error:", error);
+            alert("اعمال منو انجام نشد: " + error.message);
+          });
+      }, { onlyOnce: true });
+    };
+
     let stockIngredients = {};
 
     window.showTab = (tabId) => {
@@ -468,7 +1017,7 @@
       const position = parseInt(document.getElementById('add-position').value);
       const category = document.getElementById('add-category').value;
       const status = document.getElementById('add-status').value;
-      if (!name || !price || !img || !category || !status) return alert("نام، قیمت، تصویر، دسته‌بندی و وضعیت الزامی است.");
+      if (!name || !Number.isFinite(price) || price <= 0 || !category || !status) return alert("نام، قیمت، دسته‌بندی و وضعیت الزامی است؛ تصویر اختیاری است.");
       const data = { name, desc, price, img, position, category, status, ingredients: {} };
       push(menuRef, data).then(() => {
         closeModal('add-item-modal');
@@ -885,11 +1434,14 @@
           Object.entries(data).sort((a,b)=> (a[1].position||0)-(b[1].position||0)).forEach(([key, item]) => {
             if (currentFilter === 'all' || item.category === currentFilter) {
               const categoryLabel = {
-                'hot_coffee': 'قهوه گرم',
-                'food': 'غذا و دسر',
-                'hot_drink': 'نوشیدنی گرم',
-                'cold_drink': 'نوشیدنی سرد',
-                'iced_coffee': 'قهوه سرد'
+                'hot_coffee': 'قهوه‌های گرم',
+                'iced_coffee': 'قهوه‌های سرد',
+                'hot_drink': 'نوشیدنی‌های گرم',
+                'cold_drink': 'نوشیدنی‌های خنک',
+                'drinks': 'نوشیدنی',
+                'breakfast': 'صبحانه',
+                'food': 'غذا و میان‌وعده',
+                'cakes': 'کیک و شیرینی'
               }[item.category] || 'نامشخص';
               const div = document.createElement('div');
               div.className = 'item-card';
@@ -914,7 +1466,7 @@
                 <div>${item.desc}</div>
                 <div>${item.price.toLocaleString('fa-IR')} تومان</div>
                 <div>دسته‌بندی: ${categoryLabel}</div>
-                <div>وضعیت: ${item.status || 'موجود'}</div>
+                <div>وضعیت: ${item.status === 'Archived' ? 'بایگانی‌شده' : (item.status || 'موجود')}</div>
                 <div class="item-actions">
                   <button onclick="toggleEdit('${key}')">ویرایش</button>
                   <button onclick="duplicateItem('${key}')">کپی</button>
@@ -929,16 +1481,20 @@
                   <input id="edit-img-${key}" placeholder="آدرس تصویر" value="${item.img || ''}" />
                   <input id="edit-position-${key}" placeholder="ترتیب" type="number" value="${item.position || ''}" />
                   <select id="edit-category-${key}">
-                    <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>قهوه گرم</option>
-                    <option value="food" ${item.category === 'food' ? 'selected' : ''}>غذا و دسر</option>
-                    <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>نوشیدنی گرم</option>
-                    <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>نوشیدنی سرد</option>
-                    <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>قهوه سرد</option>
+                    <option value="hot_coffee" ${item.category === 'hot_coffee' ? 'selected' : ''}>قهوه‌های گرم</option>
+                    <option value="iced_coffee" ${item.category === 'iced_coffee' ? 'selected' : ''}>قهوه‌های سرد</option>
+                    <option value="hot_drink" ${item.category === 'hot_drink' ? 'selected' : ''}>نوشیدنی‌های گرم</option>
+                    <option value="cold_drink" ${item.category === 'cold_drink' ? 'selected' : ''}>نوشیدنی‌های خنک</option>
+                    <option value="drinks" ${item.category === 'drinks' ? 'selected' : ''}>نوشیدنی</option>
+                    <option value="breakfast" ${item.category === 'breakfast' ? 'selected' : ''}>صبحانه</option>
+                    <option value="food" ${item.category === 'food' ? 'selected' : ''}>غذا و میان‌وعده</option>
+                    <option value="cakes" ${item.category === 'cakes' ? 'selected' : ''}>کیک و شیرینی</option>
                   </select>
                   <select id="edit-status-${key}">
                     <option value="Available" ${item.status === 'Available' ? 'selected' : ''}>موجود</option>
                     <option value="Not Available" ${item.status === 'Not Available' ? 'selected' : ''}>ناموجود</option>
                     <option value="Coming Soon" ${item.status === 'Coming Soon' ? 'selected' : ''}>به‌زودی</option>
+                    <option value="Archived" ${item.status === 'Archived' ? 'selected' : ''}>بایگانی‌شده</option>
                   </select>
                   <strong>مواد اولیه</strong>
                   <div id="ingredients-container-${key}">
@@ -973,7 +1529,7 @@
       const position = parseInt(document.getElementById(`edit-position-${key}`).value);
       const category = document.getElementById(`edit-category-${key}`).value;
       const status = document.getElementById(`edit-status-${key}`).value;
-      if (!name || !price || !img || !category || !status) return alert("نام، قیمت، تصویر، دسته‌بندی و وضعیت الزامی است.");
+      if (!name || !Number.isFinite(price) || price <= 0 || !category || !status) return alert("نام، قیمت، دسته‌بندی و وضعیت الزامی است؛ تصویر اختیاری است.");
       const ingredients = {};
       let index = 0;
       while (document.getElementById(`edit-ing-name-${key}-${index}`)) {
