@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: sans-serif;
-      background: #FFC107; /* Yellow Van Gogh */
+      background: #F7F4E9; /* warm Mediterranean cream */
       padding: 16px;
       margin: 0;
       position: relative;
@@ -24,7 +24,7 @@
       font-size: 24px;
       font-weight: bold;
       margin-bottom: 16px;
-      color: #1A237E; /* Dark Blue Van Gogh */
+      color: #173B56; /* Aegean navy */
     }
 
     .tabs {
@@ -35,7 +35,7 @@
     }
 
     .tab {
-      background: #1A237E; /* Dark Blue */
+      background: #173B56; /* Aegean navy */
       color: white;
       border: none;
       border-radius: 8px;
@@ -45,8 +45,8 @@
     }
 
     .tab.active {
-      background: #FFC107; /* Yellow */
-      color: #1A237E;
+      background: #DCEAE7; /* sea glass */
+      color: #173B56;
     }
 
     .menu {
@@ -93,7 +93,7 @@
     }
 
     .price {
-      color: green;
+      color: #397F98;
       font-weight: bold;
       margin: 4px 0;
       font-size: 13px;
@@ -112,7 +112,7 @@
     }
 
     .quantity button {
-      background: #1A237E;
+      background: #173B56;
       color: white;
       border: none;
       border-radius: 4px;
@@ -133,7 +133,7 @@
       position: fixed;
       bottom: 16px;
       left: 16px;
-      background: #1A237E;
+      background: #173B56;
       color: white;
       border: 2px solid transparent;
       border-radius: 50%;
@@ -147,7 +147,7 @@
     }
 
     #cartBtn.active {
-      border: 2px solid #FFC107; /* Yellow border when cart is full */
+      border: 2px solid #C09A5A; /* Yellow border when cart is full */
     }
 
     #cart {
@@ -173,17 +173,17 @@
     #cartHeader {
       font-weight: bold;
       margin-bottom: 8px;
-      background-color: #FFC107;
+      background-color: #E9E3D2;
       padding: 6px;
       border-radius: 6px;
-      color: #1A237E;
+      color: #173B56;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
     #closeCart {
-      background: #1A237E;
+      background: #173B56;
       color: white;
       border: none;
       border-radius: 50%;
@@ -208,14 +208,14 @@
 
     .cart-item span {
       flex: 1;
-      color: #1A237E;
+      color: #173B56;
     }
 
     .cart-total {
       margin-top: 8px;
       font-weight: bold;
       font-size: 14px;
-      color: #1A237E;
+      color: #173B56;
     }
 
     textarea.customer {
@@ -228,7 +228,7 @@
     }
 
     #submitOrder, #cancelOrder {
-      background: #1A237E;
+      background: #173B56;
       color: white;
       width: 100%;
       margin-top: 12px;
@@ -259,14 +259,18 @@
 </head>
 <body>
   <img src="https://i.ibb.co/xKwdZWkq/logo.png" alt="لوگوی کافه تراس" class="logo">
-  <div class="title">منوی کافه تراس</div>
+  <div class="title">Café Terras · منوی کافه</div>
+  <div style="text-align:center;color:#397F98;font-size:11px;letter-spacing:2px;margin:-8px 0 16px">FRESH COFFEE AND MORE · MYKONOS EDITION</div>
   <div class="tabs">
     <button class="tab active" onclick="filterMenu('all')">همه</button>
-    <button class="tab" onclick="filterMenu('hot_coffee')">قهوه گرم</button>
-    <button class="tab" onclick="filterMenu('iced_coffee')">قهوه سرد</button>
-    <button class="tab" onclick="filterMenu('food')">غذا و دسر</button>
+    <button class="tab" onclick="filterMenu('hot_coffee')">قهوه‌های گرم</button>
+    <button class="tab" onclick="filterMenu('iced_coffee')">قهوه‌های سرد</button>
     <button class="tab" onclick="filterMenu('hot_drink')">نوشیدنی‌های گرم</button>
-    <button class="tab" onclick="filterMenu('cold_drink')">نوشیدنی‌های سرد</button>
+    <button class="tab" onclick="filterMenu('cold_drink')">نوشیدنی‌های خنک</button>
+    <button class="tab" onclick="filterMenu('drinks')">نوشیدنی</button>
+    <button class="tab" onclick="filterMenu('breakfast')">صبحانه</button>
+    <button class="tab" onclick="filterMenu('food')">غذا و میان‌وعده</button>
+    <button class="tab" onclick="filterMenu('cakes')">کیک و شیرینی</button>
   </div>
   <div class="menu" id="menu"></div>
   <button id="cartBtn">🛒</button>
@@ -326,10 +330,12 @@
         return;
       }
       Object.entries(items)
-        .filter(([_, item]) => currentCategory === 'all' || item.category === currentCategory)
+        .filter(([_, item]) => item.status !== "Archived" &&
+          (currentCategory === 'all' || item.category === currentCategory))
         .sort((a, b) => (a[1].position || 0) - (b[1].position || 0))
         .forEach(([key, item]) => {
-          const isDisabled = item.status === "Not Available" || item.status === "Coming soon";
+          const isDisabled = item.status === "Not Available" ||
+            item.status === "Coming soon" || item.status === "Coming Soon";
           const card = document.createElement("div");
           card.className = `card ${isDisabled ? 'disabled' : ''}`;
           if (!isDisabled) card.onclick = () => addToCart(key);
